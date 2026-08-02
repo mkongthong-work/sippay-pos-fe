@@ -1,0 +1,431 @@
+.pos-page {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.5rem;
+  height: 100%;
+}
+
+.categories {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.category-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+
+  &.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+}
+
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.item-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 1rem;
+  min-height: 90px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-primary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.item-name {
+  font-weight: 600;
+}
+
+.item-price {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.item-sold-out {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.7rem;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.cart-panel {
+  display: flex;
+  flex-direction: column;
+  // ป้องกัน grid item ยืดสูงเกินพื้นที่ที่มีจริงตามเนื้อหา (grid item มี min-height:auto โดย
+  // ปริยาย ทำให้ .cart-lines ด้านในไม่ยอมหด/scroll แล้วดันปุ่มด้านล่างหลุดจอเมื่อรายการเยอะ)
+  min-height: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+
+  h2 {
+    margin: 0 0 1rem;
+    flex: none;
+  }
+}
+
+.order-type {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex: none;
+}
+
+.table-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+  flex: none;
+
+  select,
+  input {
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    font: inherit;
+  }
+}
+
+.guest-warning {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #b45309;
+}
+
+.cart-lines {
+  flex: 1 1 auto;
+  // ตัวนี้คือจุดสำคัญ: ถ้าไม่ตั้ง min-height:0 รายการเยอะแล้วจะดัน .cart-total/.cart-actions
+  // หลุดจอแทนที่จะ scroll อยู่ภายในตัวเอง (ปัญหาเดียวกับ flexbox ทั่วไป)
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cart-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.line-top {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.line-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.line-options {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.edit-line-btn {
+  margin-left: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--color-primary);
+  background: none;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  cursor: pointer;
+}
+
+.edit-mode-tag {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.line-note-input {
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  box-sizing: border-box;
+}
+
+.line-takeaway {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.line-qty {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  button {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: white;
+    cursor: pointer;
+  }
+}
+
+.cart-total {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--color-border);
+  margin-top: 0.5rem;
+}
+
+.message {
+  flex: none;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.cart-actions {
+  flex: none;
+  display: flex;
+  gap: 0.5rem;
+
+  button {
+    flex: 1;
+    padding: 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: white;
+    cursor: pointer;
+
+    &.primary {
+      background: var(--color-accent);
+      color: white;
+      border: none;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 420px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+
+  h3 {
+    margin: 0 0 1rem;
+  }
+}
+
+.option-group {
+  margin-bottom: 1rem;
+}
+
+.option-group-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  .required-tag {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--color-danger);
+  }
+}
+
+.option-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.choice-btn {
+  padding: 0.5rem 0.9rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+
+  &.selected {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .choice-price {
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+}
+
+.option-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0.75rem 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+
+  button {
+    flex: 1;
+    padding: 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: white;
+    cursor: pointer;
+
+    &.primary {
+      background: var(--color-accent);
+      color: white;
+      border: none;
+    }
+  }
+}
+
+// ---- popup ตรวจสอบรายการก่อนส่งออเดอร์ ----
+.review-meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.review-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  li {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed var(--color-border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+.review-line-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.review-line-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.1rem;
+}
+
+.review-takeaway-tag {
+  margin-left: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--color-primary);
+  background: var(--color-highlight-bg);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+.review-total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  margin-bottom: 0.75rem;
+}
+
+// ---- popup โชว์เลขออเดอร์หลังส่ง (ซื้อกลับ) ----
+.takeaway-result {
+  text-align: center;
+}
+
+.takeaway-hint {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0 0 1rem;
+}
+
+.takeaway-order-number {
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin-bottom: 1.25rem;
+}

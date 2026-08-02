@@ -1,0 +1,52 @@
+<div class="reports-page">
+  <h1>รายงานยอดขายรายวัน</h1>
+
+  <div class="row">
+    <label>
+      วันที่
+      <input type="date" [(ngModel)]="selectedDate" (change)="load()" />
+    </label>
+    <button (click)="load()">โหลดรายงาน</button>
+  </div>
+
+  @if (loading()) {
+    <p>กำลังโหลด...</p>
+  } @else {
+    @if (report(); as r) {
+      <div class="summary">
+        <div class="stat">
+          <span class="label">จำนวนบิล</span>
+          <span class="value">{{ r.order_count }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">ยอดขายรวม</span>
+          <span class="value">{{ r.total_sales | number: '1.0-0' }} บาท</span>
+        </div>
+      </div>
+
+      <h2>เมนูขายดี</h2>
+      <table class="top-items">
+        <thead>
+          <tr>
+            <th>เมนู</th>
+            <th>จำนวน</th>
+            <th>ยอดขาย</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of r.top_items; track item.name) {
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.total | number: '1.0-0' }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="3" class="empty">ยังไม่มีข้อมูลขายในวันนี้</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+</div>

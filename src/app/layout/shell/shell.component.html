@@ -1,0 +1,19 @@
+<div class="shell">
+  <nav class="topnav">
+    <span class="brand">POS ร้าน</span>
+    <a routerLink="/pos" routerLinkActive="active">หน้าขาย</a>
+    <a routerLink="/orders" routerLinkActive="active">ออเดอร์</a>
+    <a routerLink="/kitchen" routerLinkActive="active">จอครัว</a>
+    <a routerLink="/menu" routerLinkActive="active">จัดการเมนู</a>
+    <a routerLink="/tables" routerLinkActive="active">จัดการโต๊ะ</a>
+    <a routerLink="/reports" routerLinkActive="active">รายงาน</a>
+    <span class="spacer"></span>
+    @if (auth.user(); as u) {
+      <span class="user">{{ u.name }} ({{ u.role }})</span>
+    }
+    <button class="logout-btn" (click)="logout()">ออกจากระบบ</button>
+  </nav>
+  <main class="content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

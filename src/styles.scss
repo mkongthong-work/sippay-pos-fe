@@ -1,0 +1,45 @@
+/* Global styles + CSS variables ใช้ร่วมกันทุกหน้า ออกแบบให้ปุ่มใหญ่ กดง่ายบนแท็บเล็ต */
+
+:root {
+  // ชุดสี CI: primary = กรมท่า, accent = ม่วงเข้ม (ใช้กับปุ่มยืนยัน/บันทึกเท่านั้น
+  // เพื่อไม่ให้ไปคล้ายสีแดงของปุ่มยกเลิก), highlight-bg = ฟ้าอ่อน (ใช้กับพื้นหลัง tag/badge)
+  --color-primary: #404969;
+  --color-accent: #5b89d8;
+  --color-highlight-bg: #bde4f4;
+  --color-bg: #f4f4f6;
+  --color-surface: #ffffff;
+  --color-border: #e5e5ea;
+  --color-text: #1c1c1e;
+  --color-text-muted: #6b7280;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fee2e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sarabun", sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+button {
+  font-family: inherit;
+}
+
+h1 {
+  font-size: 1.4rem;
+}
+
+h2 {
+  font-size: 1.1rem;
+}

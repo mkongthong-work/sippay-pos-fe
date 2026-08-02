@@ -1,0 +1,246 @@
+<div class="pos-page">
+  <section class="menu-panel">
+    <div class="categories">
+      @for (cat of categories(); track cat.id) {
+        <button
+          class="category-btn"
+          [class.active]="selectedCategoryId() === cat.id"
+          (click)="selectCategory(cat.id)"
+        >
+          {{ cat.name }}
+        </button>
+      }
+    </div>
+
+    <div class="items-grid">
+      @for (item of filteredMenuItems(); track item.id) {
+        <button class="item-card" [disabled]="!item.is_available" (click)="addToCart(item)">
+          <span class="item-name">{{ item.name }}</span>
+          <span class="item-price">{{ item.price | number: '1.0-0' }} บาท</span>
+          @if (!item.is_available) {
+            <span class="item-sold-out">หมด</span>
+          }
+        </button>
+      } @empty {
+        <p class="empty">ยังไม่มีเมนูในหมวดนี้ ไปเพิ่มได้ที่หน้าจัดการเมนู</p>
+      }
+    </div>
+  </section>
+
+  <aside class="cart-panel">
+    <h2>บิลปัจจุบัน</h2>
+
+    <div class="order-type">
+      <label>
+        <input type="radio" name="orderType" value="dine_in" [(ngModel)]="orderType" />
+        นั่งทาน
+      </label>
+      <label>
+        <input type="radio" name="orderType" value="takeaway" [(ngModel)]="orderType" />
+        ซื้อกลับ
+      </label>
+    </div>
+
+    @if (orderType === 'dine_in') {
+      <div class="table-select">
+        <label for="table">โต๊ะ</label>
+        <select id="table" name="table" [(ngModel)]="selectedTableId">
+          <option [ngValue]="null">-- เลือกโต๊ะ --</option>
+          @for (t of availableTables(); track t.id) {
+            <option [ngValue]="t.id">{{ t.name }} ({{ t.zone }})@if (t.capacity) { ({{ t.capacity }} ที่นั่ง) }</option>
+          }
+        </select>
+
+        <label for="guestCount">จำนวนคน (ถ้ามี)</label>
+        <input
+          id="guestCount"
+          name="guestCount"
+          type="number"
+          min="1"
+          placeholder="เช่น 4"
+          [(ngModel)]="guestCount"
+        />
+        @if (guestCountWarning(); as warning) {
+          <p class="guest-warning">{{ warning }}</p>
+        }
+      </div>
+    }
+
+    <div class="cart-lines">
+      @for (line of cart(); track line.lineId) {
+        <div class="cart-line">
+          <div class="line-top">
+            <div class="line-info">
+              <span class="line-name">
+                {{ line.menuItem.name }}
+                @if (line.menuItem.option_groups && line.menuItem.option_groups.length > 0) {
+                  <button type="button" class="edit-line-btn" (click)="editLine(line)">แก้ไข</button>
+                }
+              </span>
+              @if (line.selectedOptions.length > 0) {
+                <span class="line-options">{{ lineOptionsLabel(line) }}</span>
+              }
+            </div>
+            <div class="line-qty">
+              <button (click)="changeQuantity(line.lineId, -1)">-</button>
+              <span>{{ line.quantity }}</span>
+              <button (click)="changeQuantity(line.lineId, 1)">+</button>
+            </div>
+            <span class="line-total">{{ lineUnitPrice(line) * line.quantity | number: '1.0-0' }}</span>
+          </div>
+          <input
+            type="text"
+            class="line-note-input"
+            placeholder="เพิ่มโน้ต เช่น ไม่ใส่น้ำแข็ง"
+            [(ngModel)]="line.note"
+          />
+          @if (orderType === 'dine_in') {
+            <label class="line-takeaway">
+              <input
+                type="checkbox"
+                [checked]="line.isTakeaway"
+                (change)="toggleLineTakeaway(line.lineId)"
+              />
+              รายการนี้สั่งกลับบ้านด้วย (แยกแพ็คแม้อยู่บิลเดียวกับโต๊ะ)
+            </label>
+          }
+        </div>
+      } @empty {
+        <p class="empty">ยังไม่มีรายการ กดเลือกเมนูด้านซ้าย</p>
+      }
+    </div>
+
+    <div class="cart-total">
+      <span>รวมทั้งหมด</span>
+      <span>{{ cartTotal() | number: '1.0-0' }} บาท</span>
+    </div>
+
+    @if (message()) {
+      <p class="message">{{ message() }}</p>
+    }
+
+    <div class="cart-actions">
+      <button (click)="clearCart()" [disabled]="cart().length === 0">ล้างบิล</button>
+      <button class="primary" (click)="openReview()" [disabled]="submitting()">
+        {{ submitting() ? 'กำลังส่ง...' : 'ส่งออเดอร์' }}
+      </button>
+    </div>
+  </aside>
+
+  @if (reviewOpen()) {
+    <div class="modal-backdrop" (click)="closeReview()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h3>ตรวจสอบรายการก่อนส่งออเดอร์</h3>
+
+        <p class="review-meta">
+          {{ orderType === 'dine_in' ? 'นั่งทาน' : 'ซื้อกลับ' }}
+          @if (orderType === 'dine_in') {
+            · โต๊ะ {{ selectedTableLabel() }}
+            @if (guestCount) {
+              · {{ guestCount }} คน
+            }
+          }
+        </p>
+
+        <ul class="review-list">
+          @for (line of cart(); track line.lineId) {
+            <li>
+              <div class="review-line-row">
+                <span>
+                  {{ line.quantity }}x {{ line.menuItem.name }}
+                  @if (line.isTakeaway) {
+                    <span class="review-takeaway-tag">กลับบ้าน</span>
+                  }
+                </span>
+                <span>{{ lineUnitPrice(line) * line.quantity | number: '1.0-0' }}</span>
+              </div>
+              @if (line.selectedOptions.length > 0) {
+                <div class="review-line-sub">{{ lineOptionsLabel(line) }}</div>
+              }
+              @if (line.note) {
+                <div class="review-line-sub">หมายเหตุ: {{ line.note }}</div>
+              }
+            </li>
+          }
+        </ul>
+
+        <div class="review-total">
+          <span>รวมทั้งหมด</span>
+          <span>{{ cartTotal() | number: '1.0-0' }} บาท</span>
+        </div>
+
+        @if (message()) {
+          <p class="message">{{ message() }}</p>
+        }
+
+        <div class="modal-actions">
+          <button type="button" (click)="closeReview()">แก้ไขรายการ</button>
+          <button type="button" class="primary" (click)="confirmSubmitOrder()" [disabled]="submitting()">
+            {{ submitting() ? 'กำลังส่ง...' : 'ยืนยันส่งออเดอร์' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (takeawayResult(); as order) {
+    <div class="modal-backdrop">
+      <div class="modal takeaway-result">
+        <h3>ส่งออเดอร์เรียบร้อย</h3>
+        <p class="takeaway-hint">แจ้งลูกค้าไว้รอเรียกตามหมายเลขนี้</p>
+        <div class="takeaway-order-number">#{{ order.id }}</div>
+        <button type="button" class="primary" (click)="closeTakeawayResult()">ตกลง</button>
+      </div>
+    </div>
+  }
+
+  @if (optionDialogItem(); as item) {
+    <div class="modal-backdrop" (click)="closeOptionsDialog()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h3>
+          {{ item.name }}
+          @if (editingLineId() !== null) {
+            <span class="edit-mode-tag">(แก้ไขตัวเลือก)</span>
+          }
+        </h3>
+
+        @for (group of item.option_groups; track group.id) {
+          <div class="option-group">
+            <div class="option-group-title">
+              {{ group.name }}
+              @if (group.is_required) {
+                <span class="required-tag">*ต้องเลือก</span>
+              }
+            </div>
+            <div class="option-choices">
+              @for (choice of group.choices; track choice.id) {
+                <button
+                  type="button"
+                  class="choice-btn"
+                  [class.selected]="optionDialogSelections[group.id] === choice.id"
+                  (click)="selectOption(group.id, choice.id)"
+                >
+                  {{ choice.name }}
+                  @if (choice.price_delta) {
+                    <span class="choice-price">
+                      {{ choice.price_delta > 0 ? '+' : '' }}{{ choice.price_delta | number: '1.0-0' }}
+                    </span>
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <p class="option-hint">ใส่โน้ตเพิ่มเติม (เช่น ไม่ใส่น้ำแข็ง) ได้ที่ช่องโน้ตของรายการนี้ใน "บิลปัจจุบัน"</p>
+
+        <div class="modal-actions">
+          <button type="button" (click)="closeOptionsDialog()">ยกเลิก</button>
+          <button type="button" class="primary" (click)="confirmOptions()">
+            {{ editingLineId() !== null ? 'บันทึกการแก้ไข' : 'เพิ่มลงบิล' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

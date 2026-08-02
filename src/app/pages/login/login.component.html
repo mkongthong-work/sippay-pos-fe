@@ -1,0 +1,31 @@
+<div class="login-page">
+  <form class="login-card" (ngSubmit)="submit()">
+    <h1>เข้าสู่ระบบ POS</h1>
+
+    <label>
+      ชื่อผู้ใช้
+      <input type="text" name="username" [(ngModel)]="username" required autocomplete="username" />
+    </label>
+
+    <label>
+      รหัสผ่าน
+      <input
+        type="password"
+        name="password"
+        [(ngModel)]="password"
+        required
+        autocomplete="current-password"
+      />
+    </label>
+
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+
+    <button type="submit" [disabled]="loading()">
+      {{ loading() ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
+    </button>
+
+    <p class="hint">ผู้ใช้เริ่มต้น: admin / admin1234</p>
+  </form>
+</div>

@@ -1,0 +1,6 @@
+/* Tailwind CSS — เพิ่มไฟล์นี้แยกจาก styles.scss เพื่อไม่ให้ Sass พยายาม resolve
+   directive ของ Tailwind แบบ native import ของ Sass
+   ใช้ class ของ Tailwind ได้ทุกที่ในโปรเจกต์นี้แล้ว ส่วน CSS ตัวแปร/สไตล์เดิมยังอยู่ที่ styles.scss */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

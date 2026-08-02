@@ -1,0 +1,408 @@
+h1 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+// เพจนี้เต็มความสูงของพื้นที่เนื้อหา (ไม่ scroll ทั้งหน้า) แล้ววาง 3 ส่วนเรียงกันแนวนอน
+// เป็นคอลัมน์ (รายการ / ยอดรวม / ชำระเงิน) — มีแค่คอลัมน์ "รายการ" เท่านั้นที่ scroll ได้ภายในตัวเอง
+:host {
+  display: block;
+  height: 100%;
+}
+
+.checkout-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.checkout-column {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0.6rem;
+}
+
+.checkout-header {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+// แถวหลัก วาง 3 ส่วนเรียงกันเป็นคอลัมน์แนวนอน (align-items: stretch ค่า default
+// ทำให้แต่ละคอลัมน์สูงเท่ากับพื้นที่ที่เหลือทั้งหมดโดยอัตโนมัติ)
+.checkout-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+}
+
+// ---- ส่วนที่ 1: รายการ (คอลัมน์ซ้าย 30%, scroll ได้) ----
+.items-section {
+  flex: 0 0 calc(30% - 0.5rem);
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+
+  h2 {
+    margin: 0 0 0.4rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+}
+
+.items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+
+  li {
+    padding: 0.25rem 0;
+    color: var(--color-text-muted);
+    border-bottom: 1px dashed var(--color-border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+.item-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.item-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.1rem;
+}
+
+.opt-tag {
+  font-size: 0.68rem;
+  color: var(--color-primary);
+  background: var(--color-highlight-bg);
+  border-radius: 20px;
+  padding: 0.02rem 0.4rem;
+}
+
+.takeaway-tag {
+  margin-left: 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #b45309;
+  background: #fef3c7;
+  border-radius: 20px;
+  padding: 0.02rem 0.4rem;
+}
+
+.item-note {
+  font-size: 0.72rem;
+  font-style: italic;
+  margin-top: 0.1rem;
+}
+
+// ---- ส่วนที่ 2: ยอดรวม + ส่วนลด (คอลัมน์กลาง 20%) ----
+.totals-section {
+  flex: 0 0 calc(30% - 0.5rem);
+  min-width: 180px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+  font-size: 0.9rem;
+
+  &.discount {
+    color: var(--color-danger);
+  }
+
+  &.total {
+    font-weight: 700;
+    font-size: 1rem;
+    border-top: 1px solid var(--color-border);
+    margin-top: 0.2rem;
+    padding-top: 0.35rem;
+  }
+
+  &.change {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--color-primary);
+  }
+}
+
+.ghost-btn {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.45rem;
+  border-radius: 8px;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+.discount-box {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.discount-box-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  h3 {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+.discount-type {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.discount-input input {
+  width: 100%;
+  padding: 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  box-sizing: border-box;
+}
+
+.link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+// ---- ส่วนที่ 3: ยอดที่ต้องชำระ + แป้นกดเงินสด (คอลัมน์ขวา 50%) ----
+.payment-section {
+  flex: 0 0 calc(40% - 0.5rem);
+  min-width: 260px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.due-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--color-border);
+
+  .due-amount {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+}
+
+.received-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+
+  input {
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    font-size: 1.1rem;
+    box-sizing: border-box;
+  }
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+
+  button {
+    padding: 0.55rem 0;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: white;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--color-primary);
+    }
+
+    &:active {
+      background: var(--color-highlight-bg);
+    }
+  }
+
+  .keypad-clear {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+
+  .keypad-backspace {
+    color: var(--color-text-muted);
+  }
+}
+
+.quick-amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.quick-amount-btn {
+  flex: 1 0 calc(33% - 0.35rem);
+  padding: 0.4rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary);
+  }
+
+  &.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+}
+
+.change-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.6rem;
+  border-radius: 8px;
+  background: var(--color-highlight-bg);
+  text-align: center;
+}
+
+.change-label {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.change-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.confirm-btn {
+  width: 100%;
+  padding: 0.8rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-accent);
+  color: white;
+  font-size: 1.05rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.warn {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.cancel-link {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.paid-panel {
+  max-width: 360px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  text-align: center;
+
+  h1 {
+    margin-top: 0;
+  }
+}
+
+.paid-summary {
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.paid-panel .primary {
+  width: 100%;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+}

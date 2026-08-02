@@ -1,0 +1,159 @@
+<div class="max-w-6xl mx-auto p-4">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-bold text-gray-900">จอครัว</h1>
+    <button
+      (click)="refresh()"
+      class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-700 hover:border-navy hover:text-navy transition"
+    >
+      รีเฟรช
+    </button>
+  </div>
+
+  @if (loading()) {
+    <p class="text-gray-500 text-sm">กำลังโหลด...</p>
+  }
+
+  <div class="flex gap-2 mb-4">
+    <button
+      type="button"
+      class="px-4 py-2 rounded-lg text-sm font-medium border transition"
+      [class.bg-navy]="activeTab() === 'active'"
+      [class.text-white]="activeTab() === 'active'"
+      [class.border-navy]="activeTab() === 'active'"
+      [class.bg-white]="activeTab() !== 'active'"
+      [class.text-gray-700]="activeTab() !== 'active'"
+      [class.border-gray-300]="activeTab() !== 'active'"
+      (click)="selectTab('active')"
+    >
+      กำลังทำ ({{ activeOrders().length }})
+    </button>
+    <button
+      type="button"
+      class="px-4 py-2 rounded-lg text-sm font-medium border transition"
+      [class.bg-navy]="activeTab() === 'done'"
+      [class.text-white]="activeTab() === 'done'"
+      [class.border-navy]="activeTab() === 'done'"
+      [class.bg-white]="activeTab() !== 'done'"
+      [class.text-gray-700]="activeTab() !== 'done'"
+      [class.border-gray-300]="activeTab() !== 'done'"
+      (click)="selectTab('done')"
+    >
+      เสร็จทั้งหมด ({{ doneOrders().length }})
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    @for (order of visibleOrders(); track order.id) {
+      <div class="rounded-xl border border-gray-200 bg-white shadow-sm p-4 flex flex-col gap-3">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="font-bold text-gray-900">#{{ order.id }}</span>
+          <span class="text-gray-500">
+            {{ orderTypeText(order.order_type) }}
+            @if (order.table) {
+              · {{ order.table.name }}
+            }
+          </span>
+          @if (pendingCount(order) === 0) {
+            <span class="ml-auto text-xs font-medium text-green-700 bg-green-100 rounded-full px-2 py-0.5">
+              ครบแล้ว
+            </span>
+          } @else {
+            <span class="ml-auto text-xs font-medium text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
+              เหลือ {{ pendingCount(order) }} รายการ
+            </span>
+          }
+        </div>
+
+        <div class="text-xs text-gray-400 -mt-2">
+          ส่งเมื่อ {{ sentAtLabel(order) }} · {{ minutesAgo(order) }} นาทีที่แล้ว
+        </div>
+
+        <div class="flex flex-col gap-2">
+          @for (group of itemsByStation(order); track group.station) {
+            <div>
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                {{ group.station }}
+              </div>
+              <ul class="flex flex-col divide-y divide-gray-100">
+                @for (item of group.items; track item.id) {
+                  <li class="py-2">
+                    <div class="flex items-start gap-3">
+                      <span class="flex-1 min-w-0">
+                        <span
+                          class="block font-medium"
+                          [class.line-through]="item.status === 'served'"
+                          [class.text-gray-400]="item.status === 'served'"
+                          [class.text-gray-900]="item.status !== 'served'"
+                        >
+                          {{ item.quantity }}x {{ item.menu_item?.name }}
+                          @if (item.is_takeaway) {
+                            <span class="text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5 ml-1">
+                              กลับบ้าน
+                            </span>
+                          }
+                        </span>
+                        @if (item.options && item.options.length > 0) {
+                          <span class="block text-xs text-navy mt-0.5">{{ itemOptionsLabel(item) }}</span>
+                        }
+                        @if (item.note) {
+                          <span class="block text-xs italic text-gray-500 mt-0.5">หมายเหตุ: {{ item.note }}</span>
+                        }
+                      </span>
+
+                      <div class="flex flex-col items-end gap-1 shrink-0">
+                        @switch (item.status) {
+                          @case ('pending') {
+                            <button
+                              type="button"
+                              class="text-xs font-medium text-white bg-navy rounded-full px-3 py-1 disabled:opacity-50"
+                              [disabled]="isUpdating(item.id)"
+                              (click)="startItem(order, item)"
+                            >
+                              เริ่มทำ
+                            </button>
+                          }
+                          @case ('preparing') {
+                            <span class="text-xs font-medium text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
+                              กำลังทำ
+                            </span>
+                            <button
+                              type="button"
+                              class="text-xs font-medium text-white bg-accent rounded-full px-3 py-1 disabled:opacity-50"
+                              [disabled]="isUpdating(item.id)"
+                              (click)="finishItem(order, item)"
+                            >
+                              เสร็จ
+                            </button>
+                          }
+                          @case ('served') {
+                            <span class="text-xs font-medium text-green-700 bg-green-100 rounded-full px-2 py-0.5">
+                              เสร็จแล้ว
+                            </span>
+                            <button
+                              type="button"
+                              class="text-xs text-gray-500 underline disabled:opacity-50"
+                              [disabled]="isUpdating(item.id)"
+                              (click)="revertItem(order, item)"
+                            >
+                              ย้อนกลับ
+                            </button>
+                          }
+                        }
+                      </div>
+                    </div>
+                  </li>
+                } @empty {
+                  <li class="py-2 text-sm text-gray-400">ไม่มีรายการ</li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+      </div>
+    } @empty {
+      <p class="text-gray-500 text-sm col-span-full">
+        {{ activeTab() === 'active' ? 'ไม่มีออเดอร์ค้างอยู่' : 'ยังไม่มีออเดอร์ที่ทำเสร็จครบ' }}
+      </p>
+    }
+  </div>
+</div>
