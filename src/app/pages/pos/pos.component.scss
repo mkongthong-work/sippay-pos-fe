@@ -45,6 +45,7 @@
   background: var(--color-surface);
   cursor: pointer;
   text-align: left;
+  transition: border-color 0.12s, background 0.12s;
 
   &:hover:not(:disabled) {
     border-color: var(--color-primary);
@@ -54,6 +55,32 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  // เพิ่มลงบิลไปแล้วอย่างน้อย 1 ครั้ง — ใส่กรอบ + พื้นหลังอ่อนสีเขียวอมฟ้าให้เห็นชัดเจนว่าเมนูนี้กดไปแล้ว
+  // ไม่ต้องมองหาในบิลฝั่งขวา (จำนวนที่แน่นอนดูที่ป้าย "×N" มุมบนซ้ายแทน)
+  &.item-card--in-cart {
+    border: 1.5px solid var(--color-accent);
+    background: var(--color-accent-bg);
+  }
+}
+
+.item-cart-qty {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 // กรอบรูปสินค้า — ไม่มีรูปจริงในระบบนี้ (MenuItem ยังไม่มีฟิลด์รูป) เลยวาดไอคอน "ไม่มีรูป"

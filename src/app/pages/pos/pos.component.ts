@@ -162,6 +162,20 @@ export class PosComponent implements OnInit {
   // จำนวนชิ้นรวมทั้งบิล ใช้โชว์หัวข้อ "N ชิ้นจาก M รายการ"
   cartQtyTotal = computed(() => this.cart().reduce((sum, line) => sum + line.quantity, 0));
 
+  // จำนวนที่เพิ่มลงบิลไปแล้วของเมนูแต่ละอย่าง (รวมทุกบรรทัดของเมนูเดียวกัน แม้เลือกตัวเลือกย่อยต่างกัน) —
+  // ใช้ใส่ border + ป้าย "×N" ที่การ์ดเมนูฝั่งซ้าย ให้เห็นชัดว่าเมนูไหนกดเพิ่มไปแล้วบ้าง ไม่ต้องมองหาในบิลขวา
+  cartQtyByMenuItemId = computed(() => {
+    const map = new Map<number, number>();
+    for (const line of this.cart()) {
+      map.set(line.menuItem.id, (map.get(line.menuItem.id) ?? 0) + line.quantity);
+    }
+    return map;
+  });
+
+  cartQtyForItem(itemId: number): number {
+    return this.cartQtyByMenuItemId().get(itemId) ?? 0;
+  }
+
   // ป้ายสถานะเล็กๆ มุมบนของกล่องบิล — ไม่ใช่ "พร้อมชำระ" เพราะหน้านี้แค่ส่งออเดอร์เข้าครัว ยังไม่ได้คิดเงินจริง
   cartStatusLabel = computed(() => (this.cart().length > 0 ? 'พร้อมส่งออเดอร์' : 'ยังไม่มีรายการ'));
 

@@ -21,7 +21,15 @@
 
     <div class="items-grid">
       @for (item of filteredMenuItems(); track item.id) {
-        <button class="item-card" [disabled]="!item.is_available" (click)="addToCart(item)">
+        <button
+          class="item-card"
+          [class.item-card--in-cart]="cartQtyForItem(item.id) > 0"
+          [disabled]="!item.is_available"
+          (click)="addToCart(item)"
+        >
+          @if (cartQtyForItem(item.id); as qty) {
+            <span class="item-cart-qty">×{{ qty }}</span>
+          }
           <span class="item-image-placeholder" aria-hidden="true"></span>
           @if (categoryNameById().get(item.category_id); as catName) {
             <span class="item-category-tag">{{ catName }}</span>
