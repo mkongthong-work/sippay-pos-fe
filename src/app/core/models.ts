@@ -63,6 +63,7 @@ export interface CategoryOptionTemplate {
   max_select: number;
   is_required: boolean;
   is_enabled: boolean;
+  is_archived: boolean;
   sort_order: number;
   choices: CategoryOptionTemplateChoice[];
 }

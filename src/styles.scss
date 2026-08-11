@@ -30,6 +30,9 @@ html,
 body {
   height: 100%;
   margin: 0;
+  // กัน scrollbar ของทั้งหน้าเว็บ (นอกสุด) โผล่มาซ้อนกับ layout คงที่ของแอป (แถบไอคอนซ้าย ฯลฯ) — ทุกหน้า
+  // ต้อง scroll ผ่าน container ภายในของตัวเองแทน (ดู .page-container ใน shell.component.scss)
+  overflow: hidden;
 }
 
 body {

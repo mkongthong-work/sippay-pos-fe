@@ -111,6 +111,9 @@ export class MenuAdminComponent implements OnInit {
     if (tab === 'options') {
       this.loadAllTemplates();
     }
+    if (tab === 'archived') {
+      this.loadArchivedTemplates();
+    }
   }
 
   // ปุ่มที่ยกมาจากดีไซน์ต้นแบบแต่ระบบนี้ยังไม่รองรับจริง (เช่น นำเข้า Excel)
@@ -489,11 +492,19 @@ export class MenuAdminComponent implements OnInit {
   // =========================================================================
 
   allTemplates = signal<CategoryOptionTemplate[]>([]);
+  archivedTemplates = signal<CategoryOptionTemplate[]>([]);
 
   loadAllTemplates(): void {
     this.menuService.getAllCategoryOptionTemplates().subscribe({
       next: (templates) => this.allTemplates.set(templates),
       error: (err) => this.toastService.error(err?.error?.error ?? 'โหลดตัวเลือกเสริมไม่สำเร็จ')
+    });
+  }
+
+  loadArchivedTemplates(): void {
+    this.menuService.getArchivedCategoryOptionTemplates().subscribe({
+      next: (templates) => this.archivedTemplates.set(templates),
+      error: (err) => this.toastService.error(err?.error?.error ?? 'โหลดตัวเลือกเสริมที่เก็บถาวรไม่สำเร็จ')
     });
   }
 
@@ -580,6 +591,14 @@ export class MenuAdminComponent implements OnInit {
     this.templateFormChoices.splice(index, 1);
   }
 
+  // สลับลำดับตัวเลือกย่อย (ก่อน/หลัง) — ลำดับในตารางนี้คือลำดับที่จะโชว์เป็น chip ในการ์ดและตอนนำไปใช้กับเมนู
+  moveTemplateFormChoiceRow(index: number, direction: -1 | 1): void {
+    const target = index + direction;
+    if (target < 0 || target >= this.templateFormChoices.length) return;
+    const rows = this.templateFormChoices;
+    [rows[index], rows[target]] = [rows[target], rows[index]];
+  }
+
   toggleTemplateFormChoiceDefault(index: number): void {
     const row = this.templateFormChoices[index];
     const newValue = !row.is_default;
@@ -643,14 +662,15 @@ export class MenuAdminComponent implements OnInit {
         is_enabled: this.templateFormEnabled
       })
     ];
-    for (const row of rows) {
+    rows.forEach((row, index) => {
       if (row.id !== undefined) {
         tasks.push(
           this.menuService.updateCategoryOptionTemplateChoice(row.id, {
             name: row.name.trim(),
             price_delta: row.price_delta ?? 0,
             is_default: row.is_default,
-            is_enabled: row.is_enabled
+            is_enabled: row.is_enabled,
+            sort_order: index
           })
         );
       } else {
@@ -658,11 +678,12 @@ export class MenuAdminComponent implements OnInit {
           this.menuService.addCategoryOptionTemplateChoice(templateId, {
             name: row.name.trim(),
             price_delta: row.price_delta ?? 0,
-            is_default: row.is_default
+            is_default: row.is_default,
+            sort_order: index
           })
         );
       }
-    }
+    });
     for (const id of removedIds) {
       tasks.push(this.menuService.deleteCategoryOptionTemplateChoice(id));
     }
@@ -686,6 +707,28 @@ export class MenuAdminComponent implements OnInit {
         },
         error: (err) => this.toastService.error(err?.error?.error ?? 'ลบไม่สำเร็จ')
       });
+    });
+  }
+
+  // เก็บกลุ่มตัวเลือกไว้ (ย้ายไปแท็บ "เก็บถาวร") — ต่างจากลบตรงที่กู้คืนได้ภายหลัง
+  archiveTemplate(tpl: CategoryOptionTemplate): void {
+    this.menuService.archiveCategoryOptionTemplate(tpl.id).subscribe({
+      next: () => {
+        this.toastService.success(`เก็บ "${tpl.name}" แล้ว`);
+        this.loadAllTemplates();
+      },
+      error: (err) => this.toastService.error(err?.error?.error ?? 'เก็บไม่สำเร็จ')
+    });
+  }
+
+  restoreTemplate(tpl: CategoryOptionTemplate): void {
+    this.menuService.restoreCategoryOptionTemplate(tpl.id).subscribe({
+      next: () => {
+        this.toastService.success(`กู้คืน "${tpl.name}" แล้ว`);
+        this.loadArchivedTemplates();
+        this.loadAllTemplates();
+      },
+      error: (err) => this.toastService.error(err?.error?.error ?? 'กู้คืนไม่สำเร็จ')
     });
   }
 
@@ -795,6 +838,14 @@ export class MenuAdminComponent implements OnInit {
     this.groupFormChoices.splice(index, 1);
   }
 
+  // สลับลำดับตัวเลือกย่อย (ก่อน/หลัง) — เหมือน moveTemplateFormChoiceRow แต่ใช้กับฟอร์ม "เพิ่มกลุ่มตัวเลือก" ของเมนู
+  moveGroupFormChoiceRow(index: number, direction: -1 | 1): void {
+    const target = index + direction;
+    if (target < 0 || target >= this.groupFormChoices.length) return;
+    const rows = this.groupFormChoices;
+    [rows[index], rows[target]] = [rows[target], rows[index]];
+  }
+
   // ตัวเลือก "เริ่มต้น" ถ้าเป็นแบบเลือกได้อย่างเดียว (single) ให้เลือกได้แค่แถวเดียว — ติ๊กแถวใหม่แล้วเคลียร์แถวอื่น
   toggleGroupFormChoiceDefault(index: number): void {
     const row = this.groupFormChoices[index];
@@ -859,14 +910,15 @@ export class MenuAdminComponent implements OnInit {
     const tasks: Observable<unknown>[] = [
       this.menuService.updateOptionGroup(groupId, { ...groupFields, is_enabled: this.groupFormEnabled })
     ];
-    for (const row of rows) {
+    rows.forEach((row, index) => {
       if (row.id !== undefined) {
         tasks.push(
           this.menuService.updateOptionChoice(row.id, {
             name: row.name.trim(),
             price_delta: row.price_delta ?? 0,
             is_default: row.is_default,
-            is_enabled: row.is_enabled
+            is_enabled: row.is_enabled,
+            sort_order: index
           })
         );
       } else {
@@ -874,11 +926,12 @@ export class MenuAdminComponent implements OnInit {
           this.menuService.addOptionChoice(groupId, {
             name: row.name.trim(),
             price_delta: row.price_delta ?? 0,
-            is_default: row.is_default
+            is_default: row.is_default,
+            sort_order: index
           })
         );
       }
-    }
+    });
     for (const id of removedIds) {
       tasks.push(this.menuService.deleteOptionChoice(id));
     }

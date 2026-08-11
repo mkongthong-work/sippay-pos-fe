@@ -10,6 +10,23 @@ interface KitchenCard {
   item: OrderItem;
 }
 
+// ชุดสี "ป้ายชื่อบิล" วนซ้ำ 6 สี (ดีไซน์ 8b) — คนละชุดกับสีสถานะคอลัมน์ (แดง/เหลือง/เขียว) ใช้แค่แยกแยะ
+// ว่าการ์ดไหนเป็นบิลเดียวกัน ไม่ได้สื่อความหมายสถานะ จึงเลือกโทนที่ต่างจากสีสถานะชัดเจน
+interface BillColor {
+  border: string;
+  badgeBg: string;
+  badgeText: string;
+}
+
+const BILL_COLORS: BillColor[] = [
+  { border: '#7B4FA8', badgeBg: '#F1EAF8', badgeText: '#6B3F97' }, // ม่วง
+  { border: '#2A7BB8', badgeBg: '#E4F0F9', badgeText: '#1F5F8F' }, // ฟ้า
+  { border: '#6B7A2A', badgeBg: '#EEF1DE', badgeText: '#55611F' }, // เขียวมะกอก
+  { border: '#8A5A2E', badgeBg: '#F3E7D9', badgeText: '#6E4623' }, // น้ำตาล
+  { border: '#C25B8C', badgeBg: '#FBE6EF', badgeText: '#9E3F6B' }, // ชมพู
+  { border: '#5C5A55', badgeBg: '#EFECE5', badgeText: '#45433E' } // เทาเข้ม
+];
+
 // จอครัวแบบบอร์ด 3 คอลัมน์ (เข้าใหม่ / กำลังทำ / เสิร์ฟแล้ว) ตามดีไซน์ต้นแบบ (DotPOS มี 4 คอลัมน์ คือแยก
 // "รับแล้ว" ออกจาก "เข้าใหม่" และ "พร้อมเสิร์ฟ" ออกจาก "เสิร์ฟแล้ว" แต่ระบบนี้เก็บสถานะรายเมนูแค่ 3 แบบ
 // pending/preparing/served จึงยุบเหลือ 3 คอลัมน์แทน ไม่เพิ่ม status ใหม่ที่ backend)
@@ -133,6 +150,29 @@ export class KitchenComponent implements OnInit, OnDestroy {
   tableLabel(order: Order): string {
     if (order.table) return `โต๊ะ ${order.table.name}`;
     return order.order_type === 'dine_in' ? 'โต๊ะ -' : 'ซื้อกลับ';
+  }
+
+  // สีประจำบิล (ดีไซน์ 8b) — วนตาม order.id ให้บิลเดียวกันได้สีเดิมเสมอไม่ว่าเมนูจะกระจายอยู่คอลัมน์ไหน
+  billColor(order: Order): BillColor {
+    return BILL_COLORS[order.id % BILL_COLORS.length];
+  }
+
+  // เรียงเมนูในบิลตาม id (ลำดับที่สั่งเข้ามา) ให้เลข "N ใน M" คงที่ไม่ขยับไปมาตามสถานะที่เปลี่ยน
+  private orderItemsSorted(order: Order): OrderItem[] {
+    return [...order.items].sort((a, b) => a.id - b.id);
+  }
+
+  // ป้าย "N ใน M" บอกว่าเมนูนี้เป็นชิ้นที่เท่าไหร่ของบิล ทั้งบิลมีกี่ชิ้น (ดีไซน์ 8b)
+  posInOrderLabel(order: Order, item: OrderItem): string {
+    const sorted = this.orderItemsSorted(order);
+    const index = sorted.findIndex((i) => i.id === item.id);
+    return `${index + 1} ใน ${sorted.length}`;
+  }
+
+  // บิลนี้ยังมีเมนูอื่นที่ยังไม่เริ่มทำ (pending) ค้างอยู่กี่รายการ — โชว์เตือนที่การ์ดคอลัมน์ "กำลังทำ" เท่านั้น
+  // (ดีไซน์ 8b) ให้ครัวรู้ว่ายังมีของบิลเดียวกันรออยู่ แม้เมนูนี้จะเริ่มทำไปก่อนแล้ว
+  pendingSiblingsCount(order: Order, item: OrderItem): number {
+    return order.items.filter((i) => i.id !== item.id && i.status === 'pending').length;
   }
 
   // เริ่มทำเมนูนี้ (รอ -> กำลังทำ) — สถานะบิลโดยรวมจะขยับตามอัตโนมัติที่ backend

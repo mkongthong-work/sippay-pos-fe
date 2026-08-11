@@ -236,9 +236,12 @@
   color: var(--color-text-muted);
 }
 
+// แถบสีซ้าย 5px = "สีป้ายชื่อบิล" วนซ้ำ 6 สี (ดีไซน์ 8b) ผูกกับ order.id ผ่าน [style.border-left-color] ใน
+// template ตั้ง border-left ที่นี่แค่ความหนา/สไตล์ ให้ inline style เติมแค่สีเข้ามาทับ
 .kitchen-card {
   background: white;
   border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-border);
   border-radius: 12px;
   padding: 0.8rem;
   display: flex;
@@ -257,11 +260,28 @@
   gap: 0.5rem;
 }
 
+.card-top-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
 .card-code {
   font-family: 'IBM Plex Mono', monospace;
   font-weight: 600;
   font-size: 0.92rem;
-  color: var(--color-primary);
+}
+
+// ป้าย "N ใน M" บอกลำดับเมนูนี้ในบิล (ดีไซน์ 8b) — สีพื้น/ตัวหนังสือมาจาก billColor() ผูกกับบิลเดียวกับ
+// แถบสีซ้าย/เลขบิล ให้เห็นชัดว่าเป็นชุดเดียวกัน
+.card-pos-badge {
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .card-time {
@@ -283,6 +303,12 @@
 .card-table {
   font-size: 0.78rem;
   color: var(--color-text-muted);
+}
+
+// เตือนว่าบิลเดียวกันยังมีเมนูอื่นที่ยังไม่เริ่มทำค้างอยู่ (ดีไซน์ 8b) — โชว์เฉพาะการ์ดคอลัมน์ "กำลังทำ"
+.card-siblings-waiting {
+  color: var(--color-accent-dark);
+  font-weight: 600;
 }
 
 // ชื่อเมนู 17px ตัวหนา อ่านจากระยะ 1.5 เมตรได้ (ดีไซน์ 4b)

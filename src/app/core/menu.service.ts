@@ -121,14 +121,14 @@ export class MenuService {
 
   addOptionChoice(
     groupId: number,
-    data: { name: string; price_delta: number; is_default?: boolean }
+    data: { name: string; price_delta: number; is_default?: boolean; sort_order?: number }
   ): Observable<MenuOptionChoice> {
     return this.http.post<MenuOptionChoice>(`${API_BASE_URL}/option-groups/${groupId}/choices`, data);
   }
 
   updateOptionChoice(
     choiceId: number,
-    data: { name?: string; price_delta?: number; is_default?: boolean; is_enabled?: boolean }
+    data: { name?: string; price_delta?: number; is_default?: boolean; is_enabled?: boolean; sort_order?: number }
   ): Observable<MenuOptionChoice> {
     return this.http.put<MenuOptionChoice>(`${API_BASE_URL}/choices/${choiceId}`, data);
   }
@@ -149,6 +149,19 @@ export class MenuService {
     return this.http.get<CategoryOptionTemplate[]>(
       `${API_BASE_URL}/categories/${categoryId}/option-templates`
     );
+  }
+
+  // รายการที่เก็บถาวรไว้ (ใช้ในแท็บ "เมนูที่เก็บถาวร")
+  getArchivedCategoryOptionTemplates(): Observable<CategoryOptionTemplate[]> {
+    return this.http.get<CategoryOptionTemplate[]>(`${API_BASE_URL}/option-templates/archived`);
+  }
+
+  archiveCategoryOptionTemplate(templateId: number): Observable<CategoryOptionTemplate> {
+    return this.http.put<CategoryOptionTemplate>(`${API_BASE_URL}/option-templates/${templateId}/archive`, {});
+  }
+
+  restoreCategoryOptionTemplate(templateId: number): Observable<CategoryOptionTemplate> {
+    return this.http.put<CategoryOptionTemplate>(`${API_BASE_URL}/option-templates/${templateId}/restore`, {});
   }
 
   createCategoryOptionTemplate(
@@ -180,7 +193,7 @@ export class MenuService {
 
   addCategoryOptionTemplateChoice(
     templateId: number,
-    data: { name: string; price_delta: number; is_default?: boolean; is_enabled?: boolean }
+    data: { name: string; price_delta: number; is_default?: boolean; is_enabled?: boolean; sort_order?: number }
   ): Observable<CategoryOptionTemplateChoice> {
     return this.http.post<CategoryOptionTemplateChoice>(
       `${API_BASE_URL}/option-templates/${templateId}/choices`,
@@ -190,7 +203,7 @@ export class MenuService {
 
   updateCategoryOptionTemplateChoice(
     choiceId: number,
-    data: { name?: string; price_delta?: number; is_default?: boolean; is_enabled?: boolean }
+    data: { name?: string; price_delta?: number; is_default?: boolean; is_enabled?: boolean; sort_order?: number }
   ): Observable<CategoryOptionTemplateChoice> {
     return this.http.put<CategoryOptionTemplateChoice>(`${API_BASE_URL}/template-choices/${choiceId}`, data);
   }

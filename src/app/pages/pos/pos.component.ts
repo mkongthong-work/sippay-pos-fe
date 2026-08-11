@@ -444,8 +444,9 @@ export class PosComponent implements OnInit {
       const defaults = enabledChoices.filter((c) => c.is_default);
       if (defaults.length > 0) {
         this.optionDialogSelections[group.id] = defaults.map((c) => c.id);
-      } else if (group.selection_type !== 'multi') {
-        // เลือกได้อย่างเดียวและไม่มีตัวเลือกไหนตั้งเป็นค่าเริ่มต้นไว้ — เลือกตัวแรกให้อัตโนมัติ (พฤติกรรมเดิม)
+      } else if (group.selection_type !== 'multi' && group.is_required) {
+        // บังคับเลือกและไม่มีตัวเลือกไหนตั้งเป็นค่าเริ่มต้นไว้ — เลือกตัวแรกให้อัตโนมัติ (ต้องเลือกอยู่แล้ว)
+        // ถ้าไม่บังคับเลือก (เช่น "ไข่" เลือกได้อย่างเดียวแต่ไม่บังคับ) ต้องปล่อยว่างไว้ ไม่สุ่มเลือกให้
         this.optionDialogSelections[group.id] = [enabledChoices[0].id];
       } else {
         this.optionDialogSelections[group.id] = [];

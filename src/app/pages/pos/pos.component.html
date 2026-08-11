@@ -62,9 +62,9 @@
           <span class="dropdown-label">โต๊ะ</span>
           <button type="button" class="table-trigger-btn" (click)="openTableModal()">
             @if (selectedTableId) {
-              <span>{{ selectedTableLabel() }}@if (guestCount) { · {{ guestCount }} คน }</span>
+              <span class="table-trigger-text">{{ selectedTableLabel() }}@if (guestCount) { · {{ guestCount }} คน }</span>
             } @else {
-              <span class="table-trigger-placeholder">-- เลือกโต๊ะ --</span>
+              <span class="table-trigger-text table-trigger-placeholder">-- เลือกโต๊ะ --</span>
             }
             <svg class="dropdown-caret" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M6 9l6 6 6-6" />

@@ -166,11 +166,9 @@
     </aside>
   }
 
-  <main
-    class="content"
-    [class.no-outer-scroll]="isNoOuterScrollPage()"
-    [class.full-bleed]="isNoOuterScrollPage()"
-  >
+  <!-- container นอกสุด (.content) ไม่ scroll ทุกหน้า/ทุกขนาดจอเสมอ — เนื้อหาข้างในสกรอลเองผ่าน
+       .page-container (ดูคอมเมนต์ที่ shell.component.scss) -->
+  <main class="content" [class.full-bleed]="isFullBleedPage()">
     <div class="page-container">
       <router-outlet></router-outlet>
     </div>

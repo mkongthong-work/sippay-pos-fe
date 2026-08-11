@@ -249,6 +249,15 @@
   }
 }
 
+// ป้องกันข้อความในปุ่ม "โต๊ะ" ตัดขึ้นบรรทัดใหม่ตอนพื้นที่แคบ (เช่น "-- เลือกโต๊ะ --") ที่ทำให้ปุ่มนี้สูงกว่า
+// select "ประเภทออเดอร์" ข้างๆ จนแถวดูไม่เท่ากัน — ใช้ ellipsis แทนถ้าชื่อโต๊ะ/จำนวนคนยาวเกินพื้นที่
+.table-trigger-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table-trigger-placeholder {
   color: var(--color-text-muted);
 }

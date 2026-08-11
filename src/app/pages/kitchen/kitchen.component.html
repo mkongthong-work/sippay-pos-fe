@@ -45,9 +45,18 @@
       </div>
       <div class="col-list">
         @for (card of pendingCards(); track card.item.id) {
-          <div class="kitchen-card">
+          <div class="kitchen-card" [style.border-left-color]="billColor(card.order).border">
             <div class="card-top">
-              <span class="card-code">{{ orderCode(card.order) }}</span>
+              <span class="card-top-left">
+                <span class="card-code" [style.color]="billColor(card.order).border">{{ orderCode(card.order) }}</span>
+                <span
+                  class="card-pos-badge"
+                  [style.background]="billColor(card.order).badgeBg"
+                  [style.color]="billColor(card.order).badgeText"
+                >
+                  {{ posInOrderLabel(card.order, card.item) }}
+                </span>
+              </span>
               <span class="card-time" [class.overdue]="minutesAgo(card.order) >= 15">
                 {{ minutesAgo(card.order) }} นาที
               </span>
@@ -88,14 +97,30 @@
       </div>
       <div class="col-list">
         @for (card of preparingCards(); track card.item.id) {
-          <div class="kitchen-card">
+          <div class="kitchen-card" [style.border-left-color]="billColor(card.order).border">
             <div class="card-top">
-              <span class="card-code">{{ orderCode(card.order) }}</span>
+              <span class="card-top-left">
+                <span class="card-code" [style.color]="billColor(card.order).border">{{ orderCode(card.order) }}</span>
+                <span
+                  class="card-pos-badge"
+                  [style.background]="billColor(card.order).badgeBg"
+                  [style.color]="billColor(card.order).badgeText"
+                >
+                  {{ posInOrderLabel(card.order, card.item) }}
+                </span>
+              </span>
               <span class="card-time" [class.overdue]="minutesAgo(card.order) >= 15">
                 {{ minutesAgo(card.order) }} นาที
               </span>
             </div>
-            <div class="card-table">{{ tableLabel(card.order) }}</div>
+            <div class="card-table">
+              {{ tableLabel(card.order) }}
+              @if (pendingSiblingsCount(card.order, card.item) > 0) {
+                <span class="card-siblings-waiting">
+                  · อีก {{ pendingSiblingsCount(card.order, card.item) }} รายการรออยู่
+                </span>
+              }
+            </div>
             <div class="card-item-name">
               {{ card.item.quantity }}x {{ card.item.menu_item?.name }}
               @if (card.item.is_takeaway) {
@@ -141,9 +166,18 @@
       </div>
       <div class="col-list">
         @for (card of servedCards(); track card.item.id) {
-          <div class="kitchen-card served">
+          <div class="kitchen-card served" [style.border-left-color]="billColor(card.order).border">
             <div class="card-top">
-              <span class="card-code">{{ orderCode(card.order) }}</span>
+              <span class="card-top-left">
+                <span class="card-code" [style.color]="billColor(card.order).border">{{ orderCode(card.order) }}</span>
+                <span
+                  class="card-pos-badge"
+                  [style.background]="billColor(card.order).badgeBg"
+                  [style.color]="billColor(card.order).badgeText"
+                >
+                  {{ posInOrderLabel(card.order, card.item) }}
+                </span>
+              </span>
               <span class="card-time">{{ minutesAgo(card.order) }} นาที</span>
             </div>
             <div class="card-table">{{ tableLabel(card.order) }}</div>

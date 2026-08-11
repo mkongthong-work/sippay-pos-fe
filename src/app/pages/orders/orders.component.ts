@@ -535,8 +535,15 @@ export class OrdersComponent implements OnInit, OnDestroy {
     this.optionDialogNote = '';
     this.optionDialogSelections = {};
     for (const group of item.option_groups ?? []) {
-      if (group.choices.length > 0) {
-        this.optionDialogSelections[group.id] = group.choices[0].id;
+      const enabledChoices = group.choices.filter((c) => c.is_enabled !== false);
+      if (enabledChoices.length === 0) continue;
+      const defaultChoice = enabledChoices.find((c) => c.is_default);
+      if (defaultChoice) {
+        this.optionDialogSelections[group.id] = defaultChoice.id;
+      } else if (group.is_required) {
+        // บังคับเลือกและไม่มีตัวเลือกไหนตั้งเป็นค่าเริ่มต้นไว้ — เลือกตัวแรกให้อัตโนมัติ (ต้องเลือกอยู่แล้ว)
+        // ถ้าไม่บังคับเลือก ต้องปล่อยว่างไว้ ไม่สุ่มเลือกให้ (เช่น "ไข่" เลือกได้อย่างเดียวแต่ไม่บังคับ)
+        this.optionDialogSelections[group.id] = enabledChoices[0].id;
       }
     }
   }

@@ -169,8 +169,9 @@
                   </div>
                 </div>
                 <div class="item-admin-actions">
-                  <button type="button" (click)="openEditTemplateForm(tpl)">แก้ไข</button>
-                  <button type="button" (click)="confirmDeleteTemplate(tpl)">ลบ</button>
+                  <button type="button" class="icon-text-btn" (click)="openEditTemplateForm(tpl)">แก้ไข</button>
+                  <button type="button" class="icon-text-btn" (click)="archiveTemplate(tpl)">เก็บ</button>
+                  <button type="button" class="icon-text-btn danger" (click)="confirmDeleteTemplate(tpl)">ลบ</button>
                 </div>
               </div>
             } @empty {
@@ -196,6 +197,21 @@
             </li>
           } @empty {
             <li class="empty">ไม่มีหมวดหมู่ที่เก็บถาวร</li>
+          }
+        </ul>
+
+        <h2>ตัวเลือกเสริมที่เก็บถาวร</h2>
+        <ul class="category-list mb-6">
+          @for (tpl of archivedTemplates(); track tpl.id) {
+            <li class="category-row">
+              <div class="category-row-main">
+                <strong>{{ tpl.name }}</strong>
+                <span class="category-row-meta">{{ templateSelectionLabel(tpl) }}</span>
+              </div>
+              <button type="button" class="icon-text-btn" (click)="restoreTemplate(tpl)">กู้คืน</button>
+            </li>
+          } @empty {
+            <li class="empty">ไม่มีตัวเลือกเสริมที่เก็บถาวร</li>
           }
         </ul>
 
@@ -468,6 +484,7 @@
       <table class="choices-table">
         <thead>
           <tr>
+            <th>ลำดับ</th>
             <th>ชื่อตัวเลือก *</th>
             <th>ราคาบวกเพิ่ม (บาท)</th>
             <th>เริ่มต้น</th>
@@ -476,8 +493,14 @@
           </tr>
         </thead>
         <tbody>
-          @for (choice of groupFormChoices; track $index; let i = $index) {
+          @for (choice of groupFormChoices; track $index; let i = $index; let count = $count) {
             <tr>
+              <td class="center">
+                <span class="reorder-btns">
+                  <button type="button" [disabled]="i === 0" (click)="moveGroupFormChoiceRow(i, -1)" title="เลื่อนขึ้น (มาก่อน)">▲</button>
+                  <button type="button" [disabled]="i === count - 1" (click)="moveGroupFormChoiceRow(i, 1)" title="เลื่อนลง (มาหลัง)">▼</button>
+                </span>
+              </td>
               <td><input type="text" [(ngModel)]="choice.name" placeholder="เช่น หวานน้อย" /></td>
               <td><input type="number" [(ngModel)]="choice.price_delta" placeholder="ราคา" /></td>
               <td class="center">
@@ -582,6 +605,7 @@
       <table class="choices-table">
         <thead>
           <tr>
+            <th>ลำดับ</th>
             <th>ชื่อตัวเลือก *</th>
             <th>ราคาบวกเพิ่ม (บาท)</th>
             <th>เริ่มต้น</th>
@@ -590,8 +614,14 @@
           </tr>
         </thead>
         <tbody>
-          @for (choice of templateFormChoices; track $index; let i = $index) {
+          @for (choice of templateFormChoices; track $index; let i = $index; let count = $count) {
             <tr>
+              <td class="center">
+                <span class="reorder-btns">
+                  <button type="button" [disabled]="i === 0" (click)="moveTemplateFormChoiceRow(i, -1)" title="เลื่อนขึ้น (มาก่อน)">▲</button>
+                  <button type="button" [disabled]="i === count - 1" (click)="moveTemplateFormChoiceRow(i, 1)" title="เลื่อนลง (มาหลัง)">▼</button>
+                </span>
+              </td>
               <td><input type="text" [(ngModel)]="choice.name" placeholder="เช่น หวานน้อย" /></td>
               <td><input type="number" [(ngModel)]="choice.price_delta" placeholder="ราคา" /></td>
               <td class="center">

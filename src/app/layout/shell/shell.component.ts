@@ -24,10 +24,9 @@ export class ShellComponent implements OnInit, OnDestroy {
   // ที่จัดการ scroll ภายในของตัวเองอยู่แล้ว ไม่ต้องการให้ scroll ซ้อนกัน 2 ชั้น)
   private currentUrl = signal('');
 
-  // หน้าคิดเงินมี layout คงที่เต็มจอ + scroll เฉพาะส่วนรายการภายในตัวเองอยู่แล้ว จึงไม่ต้องการให้
-  // container ชั้นนอก (.content) scroll ซ้อนอีกชั้น — เช็คเงื่อนไขเดียวกันนี้เพื่อตัด padding รอบนอก
-  // ออกด้วย (full-bleed) ให้หน้าคิดเงินกว้างเต็มจอจริงๆ กดปุ่มต่างๆ ได้ง่ายขึ้น
-  isNoOuterScrollPage = computed(() => this.currentUrl().startsWith('/checkout'));
+  // container ชั้นนอก (.content) ไม่ scroll อยู่แล้วทุกหน้า (ดู shell.component.scss) — full-bleed แค่ตัด
+  // padding รอบนอกออกให้หน้าคิดเงินกว้างเต็มจอจริงๆ กดปุ่มต่างๆ ได้ง่ายขึ้น (หน้าอื่นไม่ต้องการ padding=0)
+  isFullBleedPage = computed(() => this.currentUrl().startsWith('/checkout'));
 
   initials = computed(() => {
     const name = this.auth.user()?.name ?? '';

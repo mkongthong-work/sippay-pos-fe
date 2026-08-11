@@ -221,6 +221,21 @@ h1 {
   color: var(--color-text-muted);
 }
 
+// แถวปุ่ม แก้ไข/เก็บ/ลบ ท้ายการ์ด (เช่น การ์ดตัวเลือกเสริม) — ใช้ปุ่มสไตล์เดียวกับ .icon-text-btn ของแถว
+// หมวดหมู่ ให้มีระยะห่างและกรอบชัดเจน ไม่ใช่ตัวหนังสือเปล่าๆ ติดกันแบบเดิม
+.item-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 0.9rem 0.85rem;
+
+  .icon-text-btn {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+  }
+}
+
 .status-pill {
   display: inline-block;
   font-size: 0.7rem;
