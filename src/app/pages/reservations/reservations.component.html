@@ -48,16 +48,18 @@
               <button
                 type="button"
                 class="text-xs border border-gray-300 rounded-full px-3 py-1 bg-white"
+                [disabled]="isBusy(r.id)"
                 (click)="cancelReservation(r)"
               >
-                ยกเลิก
+                {{ isBusy(r.id) ? 'กำลังยกเลิก...' : 'ยกเลิก' }}
               </button>
               <button
                 type="button"
                 class="text-xs border border-amber-400 text-amber-600 rounded-full px-3 py-1 bg-white"
+                [disabled]="isBusy(r.id)"
                 (click)="markNoShow(r)"
               >
-                ลูกค้าไม่มา
+                {{ isBusy(r.id) ? 'กำลังบันทึก...' : 'ลูกค้าไม่มา' }}
               </button>
             </div>
           </td>
@@ -188,9 +190,10 @@
           <button
             type="button"
             class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
+            [disabled]="savingReservation()"
             (click)="addReservation()"
           >
-            บันทึก
+            {{ savingReservation() ? 'กำลังบันทึก...' : 'บันทึก' }}
           </button>
         </div>
       </div>

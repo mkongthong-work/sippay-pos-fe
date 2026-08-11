@@ -37,6 +37,22 @@ export class ReservationsComponent implements OnInit {
     return Array.from(groups.entries()).map(([zone, tables]) => ({ zone, tables }));
   });
 
+  // ---- สถานะ "กำลังทำงาน" ของปุ่มรายแถว (ยกเลิก/ไม่มาตามนัด) — key เป็น reservation id ----
+  private busyIds = signal<Set<number>>(new Set());
+
+  isBusy(id: number): boolean {
+    return this.busyIds().has(id);
+  }
+
+  private setBusy(id: number, busy: boolean): void {
+    const next = new Set(this.busyIds());
+    if (busy) next.add(id);
+    else next.delete(id);
+    this.busyIds.set(next);
+  }
+
+  savingReservation = signal(false);
+
   // ---- popup กันโต๊ะ/จองโต๊ะ ----
   addModalOpen = signal(false);
   newTableId: number | null = null;
@@ -91,6 +107,7 @@ export class ReservationsComponent implements OnInit {
   }
 
   addReservation(): void {
+    if (this.savingReservation()) return;
     if (!this.newTableId) {
       this.toastService.error('กรุณาเลือกโต๊ะ');
       return;
@@ -104,6 +121,7 @@ export class ReservationsComponent implements OnInit {
       return;
     }
 
+    this.savingReservation.set(true);
     this.reservationService
       .createReservation({
         table_id: this.newTableId,
@@ -115,31 +133,47 @@ export class ReservationsComponent implements OnInit {
       })
       .subscribe({
         next: () => {
+          this.savingReservation.set(false);
           this.closeAddModal();
           this.reload();
           this.refreshTables();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'กันโต๊ะไม่สำเร็จ')
+        error: (err) => {
+          this.savingReservation.set(false);
+          this.toastService.error(err?.error?.error ?? 'กันโต๊ะไม่สำเร็จ');
+        }
       });
   }
 
   cancelReservation(r: Reservation): void {
+    if (this.isBusy(r.id)) return;
+    this.setBusy(r.id, true);
     this.reservationService.cancelReservation(r.id).subscribe({
       next: () => {
+        this.setBusy(r.id, false);
         this.reload();
         this.refreshTables();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'ยกเลิกไม่สำเร็จ')
+      error: (err) => {
+        this.setBusy(r.id, false);
+        this.toastService.error(err?.error?.error ?? 'ยกเลิกไม่สำเร็จ');
+      }
     });
   }
 
   markNoShow(r: Reservation): void {
+    if (this.isBusy(r.id)) return;
+    this.setBusy(r.id, true);
     this.reservationService.markNoShow(r.id).subscribe({
       next: () => {
+        this.setBusy(r.id, false);
         this.reload();
         this.refreshTables();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ')
+      error: (err) => {
+        this.setBusy(r.id, false);
+        this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ');
+      }
     });
   }
 

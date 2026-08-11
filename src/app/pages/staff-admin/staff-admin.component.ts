@@ -34,6 +34,27 @@ const THAI_MONTHS_SHORT = [
 export class StaffAdminComponent implements OnInit {
   users = signal<User[]>([]);
 
+  // ---- สถานะ "กำลังทำงาน" ของปุ่มรายแถว (สลับเปิด-ปิดใช้งาน) — key เป็น user id ----
+  private busyIds = signal<Set<number>>(new Set());
+
+  isBusy(id: number): boolean {
+    return this.busyIds().has(id);
+  }
+
+  private setBusy(id: number, busy: boolean): void {
+    const next = new Set(this.busyIds());
+    if (busy) next.add(id);
+    else next.delete(id);
+    this.busyIds.set(next);
+  }
+
+  savingAddUser = signal(false);
+  savingEditUser = signal(false);
+  clearingPin = signal(false);
+
+  // ---- โมดัลยืนยัน "ลบ PIN" — ขนาด S ตามสเปกโมดัลมาตรฐาน 6b (แทน window.confirm() เดิม) ----
+  clearPinConfirmUser = signal<User | null>(null);
+
   // ---- popup เพิ่มพนักงาน ----
   addModalOpen = signal(false);
   newUsername = '';
@@ -104,6 +125,7 @@ export class StaffAdminComponent implements OnInit {
   }
 
   addUser(): void {
+    if (this.savingAddUser()) return;
     if (!this.newUsername.trim() || !this.newName.trim()) {
       this.toastService.error('กรอกชื่อผู้ใช้และชื่อพนักงานให้ครบ');
       return;
@@ -112,6 +134,7 @@ export class StaffAdminComponent implements OnInit {
       this.toastService.error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
       return;
     }
+    this.savingAddUser.set(true);
     this.userService
       .createUser({
         username: this.newUsername.trim(),
@@ -121,10 +144,14 @@ export class StaffAdminComponent implements OnInit {
       })
       .subscribe({
         next: () => {
+          this.savingAddUser.set(false);
           this.closeAddModal();
           this.reload();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มพนักงานไม่สำเร็จ')
+        error: (err) => {
+          this.savingAddUser.set(false);
+          this.toastService.error(err?.error?.error ?? 'เพิ่มพนักงานไม่สำเร็จ');
+        }
       });
   }
 
@@ -142,6 +169,7 @@ export class StaffAdminComponent implements OnInit {
   }
 
   saveEditUser(): void {
+    if (this.savingEditUser()) return;
     const user = this.editModalUser();
     if (!user) return;
     if (!this.editName.trim()) {
@@ -153,6 +181,7 @@ export class StaffAdminComponent implements OnInit {
       return;
     }
 
+    this.savingEditUser.set(true);
     this.userService
       .updateUser(user.id, {
         name: this.editName.trim(),
@@ -161,10 +190,14 @@ export class StaffAdminComponent implements OnInit {
       })
       .subscribe({
         next: () => {
+          this.savingEditUser.set(false);
           this.closeEditModal();
           this.reload();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขพนักงานไม่สำเร็จ')
+        error: (err) => {
+          this.savingEditUser.set(false);
+          this.toastService.error(err?.error?.error ?? 'แก้ไขพนักงานไม่สำเร็จ');
+        }
       });
   }
 
@@ -225,11 +258,25 @@ export class StaffAdminComponent implements OnInit {
     });
   }
 
-  // ลบ PIN ของพนักงานคนนี้ทิ้ง (ปิดการล็อกอินด้วย PIN ของคนนี้ไปเลย จนกว่าจะตั้งใหม่)
-  clearPin(user: User): void {
-    if (!confirm(`ลบ PIN ของ "${user.name}" ทิ้ง? คนนี้จะเข้าด้วย PIN ไม่ได้จนกว่าจะตั้งใหม่`)) return;
+  // ลบ PIN ของพนักงานคนนี้ทิ้ง (ปิดการล็อกอินด้วย PIN ของคนนี้ไปเลย จนกว่าจะตั้งใหม่) — เปิดโมดัลยืนยันขนาด S
+  // ตามสเปกโมดัลมาตรฐาน 6b แทน window.confirm() เดิม (window.confirm ปิดกั้น thread กันไม่ให้โชว์ loading ได้)
+  openClearPinConfirm(user: User): void {
+    this.clearPinConfirmUser.set(user);
+  }
+
+  closeClearPinConfirm(): void {
+    if (this.clearingPin()) return;
+    this.clearPinConfirmUser.set(null);
+  }
+
+  confirmClearPin(): void {
+    const user = this.clearPinConfirmUser();
+    if (!user || this.clearingPin()) return;
+    this.clearingPin.set(true);
     this.userService.updateUser(user.id, { pin: '' }).subscribe({
       next: () => {
+        this.clearingPin.set(false);
+        this.clearPinConfirmUser.set(null);
         this.toastService.success('ลบ PIN แล้ว');
         this.reload();
         const current = this.editModalUser();
@@ -237,16 +284,26 @@ export class StaffAdminComponent implements OnInit {
           this.editModalUser.set({ ...current, has_pin: false, pin_updated_at: null });
         }
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'ลบ PIN ไม่สำเร็จ')
+      error: (err) => {
+        this.clearingPin.set(false);
+        this.toastService.error(err?.error?.error ?? 'ลบ PIN ไม่สำเร็จ');
+      }
     });
   }
 
   // เปิด/ปิดใช้งานบัญชี เช่น พนักงานลาออก โดยไม่ต้องลบทิ้งจริง
   toggleActive(user: User): void {
-    if (this.isSelf(user)) return;
+    if (this.isSelf(user) || this.isBusy(user.id)) return;
+    this.setBusy(user.id, true);
     this.userService.updateUser(user.id, { is_active: !user.is_active }).subscribe({
-      next: () => this.reload(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะไม่สำเร็จ')
+      next: () => {
+        this.setBusy(user.id, false);
+        this.reload();
+      },
+      error: (err) => {
+        this.setBusy(user.id, false);
+        this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะไม่สำเร็จ');
+      }
     });
   }
 }

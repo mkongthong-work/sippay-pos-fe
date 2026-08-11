@@ -103,8 +103,9 @@
                 type="button"
                 class="btn-outline"
                 [class.danger]="m.is_active"
+                [disabled]="isToggleBusy(m.id)"
                 (click)="toggleActive(m)"
-              >{{ m.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }}</button>
+              >{{ isToggleBusy(m.id) ? 'กำลังบันทึก...' : (m.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน') }}</button>
             }
           </div>
 

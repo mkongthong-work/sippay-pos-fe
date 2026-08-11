@@ -122,7 +122,9 @@
       @if (isOpenOrder(order)) {
         <div class="detail-edit-toggle">
           @if (nextStatus(order.status)) {
-            <button type="button" class="ghost-btn" (click)="advance(order)">เริ่มทำ</button>
+            <button type="button" class="ghost-btn" [disabled]="isBusy('advance-' + order.id)" (click)="advance(order)">
+              {{ isBusy('advance-' + order.id) ? 'กำลังบันทึก...' : 'เริ่มทำ' }}
+            </button>
           }
           <button type="button" class="ghost-btn" (click)="toggleEditMode()">
             @if (editModeOpen()) {
@@ -149,7 +151,9 @@
                 จำนวนคนที่มา
                 <input type="number" min="1" [(ngModel)]="editGuestCount" />
               </label>
-              <button type="button" (click)="saveGuestCount()">บันทึกจำนวนคน</button>
+              <button type="button" [disabled]="savingGuestCount()" (click)="saveGuestCount()">
+                {{ savingGuestCount() ? 'กำลังบันทึก...' : 'บันทึกจำนวนคน' }}
+              </button>
             </div>
           }
 
@@ -167,7 +171,14 @@
                   @if (item.status === 'served') {
                     <span class="done-tag">ทำเสร็จแล้ว</span>
                   } @else {
-                    <button type="button" class="remove-item-btn" (click)="removeItem(item.id)">ยกเลิก</button>
+                    <button
+                      type="button"
+                      class="remove-item-btn"
+                      [disabled]="isBusy('remove-item-' + item.id)"
+                      (click)="removeItem(item.id)"
+                    >
+                      {{ isBusy('remove-item-' + item.id) ? 'กำลังยกเลิก...' : 'ยกเลิก' }}
+                    </button>
                   }
                 </li>
               } @empty {
@@ -201,7 +212,7 @@
                 <button
                   type="button"
                   class="edit-item-card"
-                  [disabled]="!item.is_available"
+                  [disabled]="!item.is_available || isBusy('add-item-' + item.id)"
                   (click)="addItemToOrder(item)"
                 >
                   <span class="name">{{ item.name }}</span>
@@ -343,9 +354,10 @@
           <button
             type="button"
             class="flex-1 py-3 rounded-lg border-none bg-accent text-white"
+            [disabled]="confirmingOptions()"
             (click)="confirmOptions()"
           >
-            เพิ่มลงบิล
+            {{ confirmingOptions() ? 'กำลังเพิ่ม...' : 'เพิ่มลงบิล' }}
           </button>
         </div>
       </div>
@@ -379,6 +391,7 @@
                 <button
                   type="button"
                   class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white hover:border-accent"
+                  [disabled]="isBusy('move-table-' + t.id)"
                   (click)="chooseNewTable(t.id)"
                 >
                   {{ t.name }}

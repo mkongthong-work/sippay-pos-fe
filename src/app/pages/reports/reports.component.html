@@ -128,8 +128,19 @@
           </div>
 
           @for (o of filteredOrders(); track o.order_id) {
-            <div class="bills-row" (click)="onBillRowClick(o)" role="button" tabindex="0">
-              <span class="bill-id">#{{ o.order_id }}</span>
+            <div
+              class="bills-row"
+              [class.bills-row--loading]="receiptLoadingOrderId() === o.order_id"
+              (click)="onBillRowClick(o)"
+              role="button"
+              tabindex="0"
+            >
+              <span class="bill-id">
+                #{{ o.order_id }}
+                @if (receiptLoadingOrderId() === o.order_id) {
+                  <span class="bill-row-loading-text">กำลังโหลด...</span>
+                }
+              </span>
               <span>
                 {{ o.order_type === 'dine_in' ? 'นั่งทาน' : 'ซื้อกลับ' }}
                 @if (o.table_name) {

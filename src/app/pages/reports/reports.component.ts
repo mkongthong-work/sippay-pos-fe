@@ -73,6 +73,8 @@ export class ReportsComponent implements OnInit, OnDestroy {
   // ---- พิมพ์ใบเสร็จซ้ำจากประวัติบิล ----
   receiptOrder = signal<Order | null>(null);
   receiptLoading = signal(false);
+  // เก็บ order_id ของแถวที่กำลังโหลดอยู่ ให้ผูก [disabled]/spinner กับแถวนั้นแถวเดียว ไม่ใช่ทั้งตาราง
+  receiptLoadingOrderId = signal<number | null>(null);
   shopSettings = signal<ShopSettings | null>(null);
 
   constructor(
@@ -392,16 +394,23 @@ export class ReportsComponent implements OnInit, OnDestroy {
   // ---- พิมพ์ใบเสร็จซ้ำจากประวัติบิล ----
 
   openReceipt(o: ReportOrderSummary): void {
+    if (this.receiptLoading()) return;
     if (!this.shopSettings()) {
       this.shopSettingsService.getShopSettings().subscribe((s) => this.shopSettings.set(s));
     }
     this.receiptLoading.set(true);
+    this.receiptLoadingOrderId.set(o.order_id);
     this.orderService.getOrder(o.order_id).subscribe({
       next: (order) => {
         this.receiptLoading.set(false);
+        this.receiptLoadingOrderId.set(null);
         this.receiptOrder.set(order);
       },
-      error: () => this.receiptLoading.set(false)
+      error: (err) => {
+        this.receiptLoading.set(false);
+        this.receiptLoadingOrderId.set(null);
+        this.toastService.error(err?.error?.error ?? 'เปิดใบเสร็จไม่สำเร็จ');
+      }
     });
   }
 

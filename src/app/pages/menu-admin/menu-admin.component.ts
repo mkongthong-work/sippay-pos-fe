@@ -121,6 +121,28 @@ export class MenuAdminComponent implements OnInit {
     this.toastService.info(`ฟีเจอร์"${feature}"ยังไม่เปิดใช้งานในระบบนี้`);
   }
 
+  // ---- สถานะ "กำลังทำงาน" ของปุ่มรายแถว (แก้ไข/เก็บ/กู้คืน/ลบ/สลับ/เรียงลำดับ) ----
+  // ใช้ set ของ key ข้อความ (เช่น "cat-5", "item-avail-12") กันปุ่มไหนกำลังส่งคำขออยู่ ผูก [disabled] ที่ปุ่มนั้น
+  // โดยเฉพาะ ไม่กระทบปุ่มแถวอื่น
+  private busyKeys = signal<Set<string>>(new Set());
+
+  isBusy(key: string): boolean {
+    return this.busyKeys().has(key);
+  }
+
+  private setBusy(key: string, busy: boolean): void {
+    const next = new Set(this.busyKeys());
+    if (busy) next.add(key);
+    else next.delete(key);
+    this.busyKeys.set(next);
+  }
+
+  // ---- สถานะ "กำลังบันทึก" ของฟอร์มเต็มหน้าแต่ละแบบ — ผูกกับปุ่ม "บันทึก" หลักของแต่ละฟอร์ม ----
+  savingCategory = signal(false);
+  savingItem = signal(false);
+  savingGroup = signal(false);
+  savingTemplate = signal(false);
+
   // ---- popup ยืนยัน (ใช้ร่วมกันทั้งลบหมวดหมู่ / ลบเมนู / เก็บถาวร / กู้คืน) ----
   confirmDialog = signal<ConfirmState | null>(null);
 
@@ -216,6 +238,7 @@ export class MenuAdminComponent implements OnInit {
   }
 
   saveCategoryForm(): void {
+    if (this.savingCategory()) return;
     if (!this.categoryFormName.trim()) {
       this.toastService.error('กรอกชื่อหมวดหมู่');
       return;
@@ -229,21 +252,30 @@ export class MenuAdminComponent implements OnInit {
       is_enabled: this.categoryFormEnabled
     };
 
+    this.savingCategory.set(true);
     if (view.kind === 'category-form' && view.editingId !== null) {
       this.menuService.updateCategory(view.editingId, payload).subscribe({
         next: () => {
+          this.savingCategory.set(false);
           this.closeCategoryForm();
           this.reload();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขหมวดหมู่ไม่สำเร็จ')
+        error: (err) => {
+          this.savingCategory.set(false);
+          this.toastService.error(err?.error?.error ?? 'แก้ไขหมวดหมู่ไม่สำเร็จ');
+        }
       });
     } else {
       this.menuService.createCategory(payload).subscribe({
         next: () => {
+          this.savingCategory.set(false);
           this.closeCategoryForm();
           this.reload();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มหมวดหมู่ไม่สำเร็จ')
+        error: (err) => {
+          this.savingCategory.set(false);
+          this.toastService.error(err?.error?.error ?? 'เพิ่มหมวดหมู่ไม่สำเร็จ');
+        }
       });
     }
   }
@@ -255,9 +287,17 @@ export class MenuAdminComponent implements OnInit {
     }
     const cat = this.categories().find((c) => c.id === id);
     this.askConfirm(`ยืนยันลบหมวดหมู่ "${cat?.name ?? ''}"? การลบไม่สามารถย้อนกลับได้`, () => {
+      const key = `cat-${id}`;
+      this.setBusy(key, true);
       this.menuService.deleteCategory(id).subscribe({
-        next: () => this.reload(),
-        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบหมวดหมู่ไม่สำเร็จ')
+        next: () => {
+          this.setBusy(key, false);
+          this.reload();
+        },
+        error: (err) => {
+          this.setBusy(key, false);
+          this.toastService.error(err?.error?.error ?? 'ลบหมวดหมู่ไม่สำเร็จ');
+        }
       });
     });
   }
@@ -268,22 +308,42 @@ export class MenuAdminComponent implements OnInit {
       return;
     }
     this.askConfirm(`เก็บหมวดหมู่ "${cat.name}" เข้าคลังเก็บถาวร? กู้คืนได้ทีหลังที่แท็บ "เมนูที่เก็บถาวร"`, () => {
+      const key = `cat-${cat.id}`;
+      this.setBusy(key, true);
       this.menuService.archiveCategory(cat.id).subscribe({
-        next: () => this.reload(),
-        error: (err) => this.toastService.error(err?.error?.error ?? 'เก็บหมวดหมู่ไม่สำเร็จ')
+        next: () => {
+          this.setBusy(key, false);
+          this.reload();
+        },
+        error: (err) => {
+          this.setBusy(key, false);
+          this.toastService.error(err?.error?.error ?? 'เก็บหมวดหมู่ไม่สำเร็จ');
+        }
       });
     }, 'เก็บถาวร');
   }
 
   restoreCategory(cat: Category): void {
+    const key = `cat-${cat.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.menuService.restoreCategory(cat.id).subscribe({
-      next: () => this.reload(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'กู้คืนหมวดหมู่ไม่สำเร็จ')
+      next: () => {
+        this.setBusy(key, false);
+        this.reload();
+      },
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'กู้คืนหมวดหมู่ไม่สำเร็จ');
+      }
     });
   }
 
   // เรียงลำดับหมวดหมู่ขึ้น/ลง — สลับค่า sort_order กับหมวดข้างเคียงแล้วบันทึกทั้งคู่
   moveCategory(cat: Category, direction: -1 | 1): void {
+    const key = `cat-move-${cat.id}`;
+    if (this.isBusy(key)) return;
+
     const list = [...this.categories()].sort((a, b) => a.sort_order - b.sort_order);
     const index = list.findIndex((c) => c.id === cat.id);
     const targetIndex = index + direction;
@@ -293,12 +353,19 @@ export class MenuAdminComponent implements OnInit {
     const catSort = cat.sort_order;
     const otherSort = other.sort_order;
 
+    this.setBusy(key, true);
     this.menuService
       .updateCategory(cat.id, { ...cat, sort_order: otherSort })
       .subscribe(() => {
         this.menuService.updateCategory(other.id, { ...other, sort_order: catSort }).subscribe({
-          next: () => this.reload(),
-          error: (err) => this.toastService.error(err?.error?.error ?? 'จัดลำดับไม่สำเร็จ')
+          next: () => {
+            this.setBusy(key, false);
+            this.reload();
+          },
+          error: (err) => {
+            this.setBusy(key, false);
+            this.toastService.error(err?.error?.error ?? 'จัดลำดับไม่สำเร็จ');
+          }
         });
       });
   }
@@ -386,13 +453,18 @@ export class MenuAdminComponent implements OnInit {
   removeItemImage(): void {
     const editingItem = this.itemFormEditingItem();
     if (editingItem && editingItem.image_path) {
+      this.itemFormUploadingImage.set(true);
       this.menuService.deleteMenuItemImage(editingItem.id).subscribe({
         next: (updated) => {
+          this.itemFormUploadingImage.set(false);
           this.itemFormImagePreviewUrl.set(null);
           this.itemFormEditingItem.set(updated);
           this.reload();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบรูปไม่สำเร็จ')
+        error: (err) => {
+          this.itemFormUploadingImage.set(false);
+          this.toastService.error(err?.error?.error ?? 'ลบรูปไม่สำเร็จ');
+        }
       });
     } else {
       this.itemFormPendingImageFile = null;
@@ -401,13 +473,23 @@ export class MenuAdminComponent implements OnInit {
   }
 
   toggleAvailable(item: MenuItem): void {
+    const key = `item-avail-${item.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.menuService.updateMenuItem(item.id, { ...item, is_available: !item.is_available }).subscribe({
-      next: () => this.reload(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะเมนูไม่สำเร็จ')
+      next: () => {
+        this.setBusy(key, false);
+        this.reload();
+      },
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะเมนูไม่สำเร็จ');
+      }
     });
   }
 
   saveItemForm(): void {
+    if (this.savingItem()) return;
     if (
       !this.itemFormName.trim() ||
       !this.itemFormCategoryId ||
@@ -429,13 +511,18 @@ export class MenuAdminComponent implements OnInit {
       track_stock: this.itemFormTrackStock
     };
 
+    this.savingItem.set(true);
     if (editingItem) {
       this.menuService.updateMenuItem(editingItem.id, payload).subscribe({
         next: () => {
+          this.savingItem.set(false);
           this.closeItemForm();
           this.reload();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขเมนูไม่สำเร็จ')
+        error: (err) => {
+          this.savingItem.set(false);
+          this.toastService.error(err?.error?.error ?? 'แก้ไขเมนูไม่สำเร็จ');
+        }
       });
     } else {
       this.menuService.createMenuItem(payload).subscribe({
@@ -443,47 +530,78 @@ export class MenuAdminComponent implements OnInit {
           if (this.itemFormPendingImageFile) {
             this.menuService.uploadMenuItemImage(created.id, this.itemFormPendingImageFile).subscribe({
               next: () => {
+                this.savingItem.set(false);
                 this.closeItemForm();
                 this.reload();
               },
               error: () => {
+                this.savingItem.set(false);
                 this.toastService.warning('เพิ่มเมนูสำเร็จ แต่อัปโหลดรูปไม่สำเร็จ ลองแก้ไขเมนูนี้เพื่ออัปโหลดใหม่ได้');
                 this.closeItemForm();
                 this.reload();
               }
             });
           } else {
+            this.savingItem.set(false);
             this.closeItemForm();
             this.reload();
           }
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มเมนูไม่สำเร็จ')
+        error: (err) => {
+          this.savingItem.set(false);
+          this.toastService.error(err?.error?.error ?? 'เพิ่มเมนูไม่สำเร็จ');
+        }
       });
     }
   }
 
   confirmDeleteItem(item: MenuItem): void {
     this.askConfirm(`ยืนยันลบเมนู "${item.name}"? การลบไม่สามารถย้อนกลับได้`, () => {
+      const key = `item-${item.id}`;
+      this.setBusy(key, true);
       this.menuService.deleteMenuItem(item.id).subscribe({
-        next: () => this.reload(),
-        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบเมนูไม่สำเร็จ')
+        next: () => {
+          this.setBusy(key, false);
+          this.reload();
+        },
+        error: (err) => {
+          this.setBusy(key, false);
+          this.toastService.error(err?.error?.error ?? 'ลบเมนูไม่สำเร็จ');
+        }
       });
     });
   }
 
   archiveItem(item: MenuItem): void {
     this.askConfirm(`เก็บเมนู "${item.name}" เข้าคลังเก็บถาวร? กู้คืนได้ทีหลังที่แท็บ "เมนูที่เก็บถาวร"`, () => {
+      const key = `item-${item.id}`;
+      this.setBusy(key, true);
       this.menuService.archiveMenuItem(item.id).subscribe({
-        next: () => this.reload(),
-        error: (err) => this.toastService.error(err?.error?.error ?? 'เก็บเมนูไม่สำเร็จ')
+        next: () => {
+          this.setBusy(key, false);
+          this.reload();
+        },
+        error: (err) => {
+          this.setBusy(key, false);
+          this.toastService.error(err?.error?.error ?? 'เก็บเมนูไม่สำเร็จ');
+        }
       });
     }, 'เก็บถาวร');
   }
 
   restoreItem(item: MenuItem): void {
+    const key = `item-${item.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.menuService.restoreMenuItem(item.id).subscribe({
-      next: () => this.reload(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'กู้คืนเมนูไม่สำเร็จ')
+      next: () => {
+        this.setBusy(key, false);
+        this.reload();
+      },
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'กู้คืนเมนูไม่สำเร็จ');
+      }
     });
   }
 
@@ -614,6 +732,7 @@ export class MenuAdminComponent implements OnInit {
   }
 
   saveTemplateForm(): void {
+    if (this.savingTemplate()) return;
     const name = this.templateFormName.trim();
     const rows = this.templateFormChoices.filter((c) => c.name.trim().length > 0);
 
@@ -632,6 +751,7 @@ export class MenuAdminComponent implements OnInit {
       is_required: this.templateFormRequired
     };
 
+    this.savingTemplate.set(true);
     if (this.templateFormEditingId === null) {
       // เทมเพลตใหม่ — สร้างพร้อมตัวเลือกย่อยทั้งหมดในคำขอเดียว (endpoint รองรับอยู่แล้ว)
       this.menuService
@@ -641,11 +761,15 @@ export class MenuAdminComponent implements OnInit {
         })
         .subscribe({
           next: () => {
+            this.savingTemplate.set(false);
             this.toastService.success(`บันทึก "${name}" แล้ว`);
             this.closeTemplateForm();
             this.loadAllTemplates();
           },
-          error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
+          error: (err) => {
+            this.savingTemplate.set(false);
+            this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+          }
         });
       return;
     }
@@ -690,45 +814,69 @@ export class MenuAdminComponent implements OnInit {
 
     forkJoin(tasks).subscribe({
       next: () => {
+        this.savingTemplate.set(false);
         this.toastService.success(`บันทึก "${name}" แล้ว`);
         this.closeTemplateForm();
         this.loadAllTemplates();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
+      error: (err) => {
+        this.savingTemplate.set(false);
+        this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+      }
     });
   }
 
   confirmDeleteTemplate(tpl: CategoryOptionTemplate): void {
     this.askConfirm(`ยืนยันลบ "${tpl.name}"? การลบไม่สามารถย้อนกลับได้`, () => {
+      const key = `tpl-${tpl.id}`;
+      this.setBusy(key, true);
       this.menuService.deleteCategoryOptionTemplate(tpl.id).subscribe({
         next: () => {
+          this.setBusy(key, false);
           this.toastService.success('ลบแล้ว');
           this.loadAllTemplates();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบไม่สำเร็จ')
+        error: (err) => {
+          this.setBusy(key, false);
+          this.toastService.error(err?.error?.error ?? 'ลบไม่สำเร็จ');
+        }
       });
     });
   }
 
   // เก็บกลุ่มตัวเลือกไว้ (ย้ายไปแท็บ "เก็บถาวร") — ต่างจากลบตรงที่กู้คืนได้ภายหลัง
   archiveTemplate(tpl: CategoryOptionTemplate): void {
+    const key = `tpl-${tpl.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.menuService.archiveCategoryOptionTemplate(tpl.id).subscribe({
       next: () => {
+        this.setBusy(key, false);
         this.toastService.success(`เก็บ "${tpl.name}" แล้ว`);
         this.loadAllTemplates();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'เก็บไม่สำเร็จ')
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'เก็บไม่สำเร็จ');
+      }
     });
   }
 
   restoreTemplate(tpl: CategoryOptionTemplate): void {
+    const key = `tpl-${tpl.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.menuService.restoreCategoryOptionTemplate(tpl.id).subscribe({
       next: () => {
+        this.setBusy(key, false);
         this.toastService.success(`กู้คืน "${tpl.name}" แล้ว`);
         this.loadArchivedTemplates();
         this.loadAllTemplates();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'กู้คืนไม่สำเร็จ')
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'กู้คืนไม่สำเร็จ');
+      }
     });
   }
 
@@ -736,12 +884,19 @@ export class MenuAdminComponent implements OnInit {
   applyTemplateToCurrentItem(template: CategoryOptionTemplate): void {
     const item = this.itemFormEditingItem();
     if (!item) return;
+    const key = `apply-tpl-${template.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.menuService.applyOptionTemplateToMenuItem(item.id, template.id).subscribe({
       next: () => {
+        this.setBusy(key, false);
         this.toastService.success(`ใช้ค่าเริ่มต้น "${template.name}" แล้ว`);
         this.reloadEditingItem(item.id);
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'ใช้ค่าเริ่มต้นไม่สำเร็จ ลองใหม่อีกครั้ง')
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'ใช้ค่าเริ่มต้นไม่สำเร็จ ลองใหม่อีกครั้ง');
+      }
     });
   }
 
@@ -862,6 +1017,7 @@ export class MenuAdminComponent implements OnInit {
   }
 
   saveOptionGroupForm(): void {
+    if (this.savingGroup()) return;
     const name = this.groupFormName.trim();
     const rows = this.groupFormChoices.filter((c) => c.name.trim().length > 0);
 
@@ -883,6 +1039,7 @@ export class MenuAdminComponent implements OnInit {
       sort_order: this.groupFormSortOrder
     };
 
+    this.savingGroup.set(true);
     if (v.editingGroupId === null) {
       // กลุ่มใหม่ — สร้างกลุ่ม+ตัวเลือกทั้งหมดในคำขอเดียว (endpoint รองรับอยู่แล้ว)
       this.menuService
@@ -892,11 +1049,15 @@ export class MenuAdminComponent implements OnInit {
         })
         .subscribe({
           next: () => {
+            this.savingGroup.set(false);
             this.toastService.success(`บันทึก "${name}" แล้ว`);
             this.reloadEditingItem(v.menuItemId);
             this.closeOptionGroupForm();
           },
-          error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
+          error: (err) => {
+            this.savingGroup.set(false);
+            this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+          }
         });
       return;
     }
@@ -938,22 +1099,32 @@ export class MenuAdminComponent implements OnInit {
 
     forkJoin(tasks).subscribe({
       next: () => {
+        this.savingGroup.set(false);
         this.toastService.success(`บันทึก "${name}" แล้ว`);
         this.reloadEditingItem(v.menuItemId);
         this.closeOptionGroupForm();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
+      error: (err) => {
+        this.savingGroup.set(false);
+        this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+      }
     });
   }
 
   deleteGroup(item: MenuItem, groupId: number): void {
     this.askConfirm('ยืนยันลบกลุ่มตัวเลือกนี้? การลบไม่สามารถย้อนกลับได้', () => {
+      const key = `group-${groupId}`;
+      this.setBusy(key, true);
       this.menuService.deleteOptionGroup(groupId).subscribe({
         next: () => {
+          this.setBusy(key, false);
           this.toastService.success('ลบกลุ่มตัวเลือกแล้ว');
           this.reloadEditingItem(item.id);
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบไม่สำเร็จ')
+        error: (err) => {
+          this.setBusy(key, false);
+          this.toastService.error(err?.error?.error ?? 'ลบไม่สำเร็จ');
+        }
       });
     });
   }

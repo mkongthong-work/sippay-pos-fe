@@ -119,6 +119,24 @@ export class OrdersComponent implements OnInit, OnDestroy {
   optionDialogSelections: Record<number, number> = {};
   optionDialogNote = '';
 
+  // ---- สถานะ "กำลังทำงาน" ของปุ่มต่างๆ ที่เรียก API — key เป็นข้อความ (เช่น "advance-5", "remove-item-12")
+  // กันปุ่มนั้นกดซ้ำระหว่างรอ response และผูก [disabled] ที่ปุ่มนั้นโดยเฉพาะ
+  private busyKeys = signal<Set<string>>(new Set());
+
+  isBusy(key: string): boolean {
+    return this.busyKeys().has(key);
+  }
+
+  private setBusy(key: string, busy: boolean): void {
+    const next = new Set(this.busyKeys());
+    if (busy) next.add(key);
+    else next.delete(key);
+    this.busyKeys.set(next);
+  }
+
+  savingGuestCount = signal(false);
+  confirmingOptions = signal(false);
+
   // ---- ชำระเงินก่อน (popup ในหน้านี้เลย) — ใช้ได้ทั้งบิลนั่งทานและซื้อกลับที่ยังไม่ปิดบิล ไม่ต้องกด
   // "ปิดออเดอร์" ไปหน้าคิดเงินแยกต่างหากก่อน เผื่อลูกค้าอยากจ่ายไว้ล่วงหน้าระหว่างรอทำ/รอเสิร์ฟ
   payingOrder = signal<Order | null>(null);
@@ -310,9 +328,18 @@ export class OrdersComponent implements OnInit, OnDestroy {
   advance(order: Order): void {
     const next = this.nextStatus(order.status);
     if (!next) return;
+    const key = `advance-${order.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.orderService.updateStatus(order.id, next).subscribe({
-      next: () => this.refresh(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะไม่สำเร็จ')
+      next: () => {
+        this.setBusy(key, false);
+        this.refresh();
+      },
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะไม่สำเร็จ');
+      }
     });
   }
 
@@ -457,15 +484,23 @@ export class OrdersComponent implements OnInit, OnDestroy {
   }
 
   saveGuestCount(): void {
+    if (this.savingGuestCount()) return;
     const order = this.selectedOrder();
     if (!order) return;
     if (!this.editGuestCount || this.editGuestCount <= 0) {
       this.toastService.error('กรอกจำนวนคนให้ถูกต้อง');
       return;
     }
+    this.savingGuestCount.set(true);
     this.orderService.updateGuestCount(order.id, this.editGuestCount).subscribe({
-      next: () => this.refresh(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขจำนวนคนไม่สำเร็จ')
+      next: () => {
+        this.savingGuestCount.set(false);
+        this.refresh();
+      },
+      error: (err) => {
+        this.savingGuestCount.set(false);
+        this.toastService.error(err?.error?.error ?? 'แก้ไขจำนวนคนไม่สำเร็จ');
+      }
     });
   }
 
@@ -484,13 +519,20 @@ export class OrdersComponent implements OnInit, OnDestroy {
   chooseNewTable(tableId: number): void {
     const order = this.selectedOrder();
     if (!order) return;
+    const key = `move-table-${tableId}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.orderService.changeTable(order.id, tableId).subscribe({
       next: () => {
+        this.setBusy(key, false);
         this.closeMoveTable();
         this.tableService.getTables().subscribe((tables) => this.tables.set(tables));
         this.refresh();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'ย้ายโต๊ะไม่สำเร็จ')
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'ย้ายโต๊ะไม่สำเร็จ');
+      }
     });
   }
 
@@ -506,6 +548,9 @@ export class OrdersComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const key = `add-item-${item.id}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.orderService
       .addItem(order.id, {
         menu_item_id: item.id,
@@ -514,17 +559,32 @@ export class OrdersComponent implements OnInit, OnDestroy {
         is_takeaway: this.addItemIsTakeaway
       })
       .subscribe({
-        next: () => this.refresh(),
-        error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มรายการไม่สำเร็จ')
+        next: () => {
+          this.setBusy(key, false);
+          this.refresh();
+        },
+        error: (err) => {
+          this.setBusy(key, false);
+          this.toastService.error(err?.error?.error ?? 'เพิ่มรายการไม่สำเร็จ');
+        }
       });
   }
 
   removeItem(itemId: number): void {
     const order = this.selectedOrder();
     if (!order) return;
+    const key = `remove-item-${itemId}`;
+    if (this.isBusy(key)) return;
+    this.setBusy(key, true);
     this.orderService.deleteItem(order.id, itemId).subscribe({
-      next: () => this.refresh(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'ยกเลิกไม่สำเร็จ')
+      next: () => {
+        this.setBusy(key, false);
+        this.refresh();
+      },
+      error: (err) => {
+        this.setBusy(key, false);
+        this.toastService.error(err?.error?.error ?? 'ยกเลิกไม่สำเร็จ');
+      }
     });
   }
 
@@ -557,6 +617,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
   }
 
   confirmOptions(): void {
+    if (this.confirmingOptions()) return;
     const order = this.selectedOrder();
     const item = this.optionDialogItem();
     if (!order || !item) return;
@@ -573,6 +634,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
       .filter((g) => this.optionDialogSelections[g.id])
       .map((g) => this.optionDialogSelections[g.id]);
 
+    this.confirmingOptions.set(true);
     this.orderService
       .addItem(order.id, {
         menu_item_id: item.id,
@@ -583,10 +645,14 @@ export class OrdersComponent implements OnInit, OnDestroy {
       })
       .subscribe({
         next: () => {
+          this.confirmingOptions.set(false);
           this.closeOptionsDialog();
           this.refresh();
         },
-        error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มรายการไม่สำเร็จ')
+        error: (err) => {
+          this.confirmingOptions.set(false);
+          this.toastService.error(err?.error?.error ?? 'เพิ่มรายการไม่สำเร็จ');
+        }
       });
   }
 }

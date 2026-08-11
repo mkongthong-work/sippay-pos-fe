@@ -29,6 +29,24 @@ export class TableAdminComponent implements OnInit {
   // (ปิดใช้งานมีผลแค่ตอนพนักงานเลือกโต๊ะที่หน้าขาย ไม่ได้ล็อกหน้าจัดการนี้)
   zoneOptions = computed(() => this.zones().map((z) => z.name));
 
+  // ---- สถานะ "กำลังทำงาน" ของปุ่มรายแถว (สลับเปิด-ปิดใช้งานโซน) — key เป็น zone id ----
+  private busyZoneIds = signal<Set<number>>(new Set());
+
+  isZoneBusy(id: number): boolean {
+    return this.busyZoneIds().has(id);
+  }
+
+  private setZoneBusy(id: number, busy: boolean): void {
+    const next = new Set(this.busyZoneIds());
+    if (busy) next.add(id);
+    else next.delete(id);
+    this.busyZoneIds.set(next);
+  }
+
+  savingAddZone = signal(false);
+  savingAddTable = signal(false);
+  savingEditTable = signal(false);
+
   // ---- popup เพิ่มโต๊ะ ----
   addModalOpen = signal(false);
   newTableName = '';
@@ -79,25 +97,39 @@ export class TableAdminComponent implements OnInit {
   }
 
   addZone(): void {
+    if (this.savingAddZone()) return;
     const name = this.newZoneName.trim();
     if (!name) {
       this.toastService.error('กรอกชื่อโซน');
       return;
     }
+    this.savingAddZone.set(true);
     this.zoneService.createZone(name).subscribe({
       next: () => {
+        this.savingAddZone.set(false);
         this.newZoneName = '';
         this.loadZones();
       },
-      error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มโซนไม่สำเร็จ')
+      error: (err) => {
+        this.savingAddZone.set(false);
+        this.toastService.error(err?.error?.error ?? 'เพิ่มโซนไม่สำเร็จ');
+      }
     });
   }
 
   // เปิด/ปิดใช้งานโซน เช่น ปิดซ่อม หรือมีการจองที่นั่งไว้ทั้งโซน — โซนที่ปิดจะไม่โชว์ในหน้าเลือกโต๊ะของ POS
   toggleZoneActive(zone: Zone): void {
+    if (this.isZoneBusy(zone.id)) return;
+    this.setZoneBusy(zone.id, true);
     this.zoneService.updateZone(zone.id, { is_active: !zone.is_active }).subscribe({
-      next: () => this.loadZones(),
-      error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะโซนไม่สำเร็จ')
+      next: () => {
+        this.setZoneBusy(zone.id, false);
+        this.loadZones();
+      },
+      error: (err) => {
+        this.setZoneBusy(zone.id, false);
+        this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะโซนไม่สำเร็จ');
+      }
     });
   }
 
@@ -133,6 +165,7 @@ export class TableAdminComponent implements OnInit {
   }
 
   addTable(): void {
+    if (this.savingAddTable()) return;
     if (!this.newTableName.trim()) {
       this.toastService.error('กรอกชื่อโต๊ะ');
       return;
@@ -140,6 +173,7 @@ export class TableAdminComponent implements OnInit {
     const zone =
       this.newTableZone === CUSTOM_ZONE_VALUE ? this.newTableZoneCustom.trim() : this.newTableZone;
 
+    this.savingAddTable.set(true);
     this.ensureZoneThenProceed(zone, () => {
       this.tableService
         .createTable({
@@ -149,10 +183,14 @@ export class TableAdminComponent implements OnInit {
         })
         .subscribe({
           next: () => {
+            this.savingAddTable.set(false);
             this.closeAddModal();
             this.reload();
           },
-          error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มโต๊ะไม่สำเร็จ')
+          error: (err) => {
+            this.savingAddTable.set(false);
+            this.toastService.error(err?.error?.error ?? 'เพิ่มโต๊ะไม่สำเร็จ');
+          }
         });
     });
   }
@@ -174,6 +212,7 @@ export class TableAdminComponent implements OnInit {
   }
 
   saveEditTable(): void {
+    if (this.savingEditTable()) return;
     const table = this.editModalTable();
     if (!table) return;
     if (!this.editTableName.trim()) {
@@ -183,6 +222,7 @@ export class TableAdminComponent implements OnInit {
     const zone =
       this.editTableZone === CUSTOM_ZONE_VALUE ? this.editTableZoneCustom.trim() : this.editTableZone;
 
+    this.savingEditTable.set(true);
     this.ensureZoneThenProceed(zone, () => {
       this.tableService
         .updateTable(table.id, {
@@ -193,10 +233,14 @@ export class TableAdminComponent implements OnInit {
         })
         .subscribe({
           next: () => {
+            this.savingEditTable.set(false);
             this.closeEditModal();
             this.reload();
           },
-          error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขโต๊ะไม่สำเร็จ')
+          error: (err) => {
+            this.savingEditTable.set(false);
+            this.toastService.error(err?.error?.error ?? 'แก้ไขโต๊ะไม่สำเร็จ');
+          }
         });
     });
   }

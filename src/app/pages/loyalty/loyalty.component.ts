@@ -60,6 +60,20 @@ export class LoyaltyComponent implements OnInit {
   memberHistory = signal<MemberPointHistory[]>([]);
   historyLoading = signal(false);
 
+  // สถานะ "กำลังทำงาน" ของปุ่มสลับเปิด-ปิดใช้งานสมาชิกรายแถว — key เป็น member id
+  private busyToggleIds = signal<Set<number>>(new Set());
+
+  isToggleBusy(id: number): boolean {
+    return this.busyToggleIds().has(id);
+  }
+
+  private setToggleBusy(id: number, busy: boolean): void {
+    const next = new Set(this.busyToggleIds());
+    if (busy) next.add(id);
+    else next.delete(id);
+    this.busyToggleIds.set(next);
+  }
+
   // Modal: เพิ่มสมาชิก
   addModalOpen = signal(false);
   newName = '';
@@ -223,12 +237,16 @@ export class LoyaltyComponent implements OnInit {
   }
 
   toggleActive(m: Member): void {
+    if (this.isToggleBusy(m.id)) return;
+    this.setToggleBusy(m.id, true);
     this.loyaltyService.updateMember(m.id, { is_active: !m.is_active }).subscribe({
       next: (updated) => {
+        this.setToggleBusy(m.id, false);
         this.loadMembers(this.searchQuery || undefined);
         if (this.selectedMember()?.id === m.id) this.selectedMember.set(updated);
       },
       error: (err) => {
+        this.setToggleBusy(m.id, false);
         if (err?.status === 404) {
           mockMembers = mockMembers.map(x => x.id === m.id ? { ...x, is_active: !m.is_active } : x);
           const updated = mockMembers.find(x => x.id === m.id)!;

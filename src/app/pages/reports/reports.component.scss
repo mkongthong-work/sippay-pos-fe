@@ -297,6 +297,13 @@
     background: var(--color-bg);
   }
 
+  // กำลังโหลดใบเสร็จของแถวนี้อยู่ — กันคลิกซ้ำระหว่างรอ response
+  &.bills-row--loading {
+    cursor: default;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
   &.bills-row--head {
     cursor: default;
     font-size: 0.72rem;
@@ -318,6 +325,15 @@
 .bill-id {
   font: 600 0.82rem 'IBM Plex Mono', monospace;
   color: var(--color-primary);
+}
+
+.bill-row-loading-text {
+  display: block;
+  font-family: 'Bai Jamjuree', sans-serif;
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  margin-top: 0.1rem;
 }
 
 .bill-amount {

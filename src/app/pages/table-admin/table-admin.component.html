@@ -92,8 +92,13 @@
           class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
           [(ngModel)]="newZoneName"
         />
-        <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white" (click)="addZone()">
-          + เพิ่มโซน
+        <button
+          type="button"
+          class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white"
+          [disabled]="savingAddZone()"
+          (click)="addZone()"
+        >
+          {{ savingAddZone() ? 'กำลังเพิ่ม...' : '+ เพิ่มโซน' }}
         </button>
       </div>
 
@@ -127,9 +132,10 @@
                   [class.border-gray-300]="z.is_active"
                   [class.border-amber-400]="!z.is_active"
                   [class.text-amber-600]="!z.is_active"
+                  [disabled]="isZoneBusy(z.id)"
                   (click)="toggleZoneActive(z)"
                 >
-                  {{ z.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }}
+                  {{ isZoneBusy(z.id) ? 'กำลังบันทึก...' : (z.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน') }}
                 </button>
               </td>
             </tr>
@@ -208,9 +214,10 @@
           <button
             type="button"
             class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
+            [disabled]="savingAddTable()"
             (click)="addTable()"
           >
-            เพิ่มโต๊ะ
+            {{ savingAddTable() ? 'กำลังบันทึก...' : 'เพิ่มโต๊ะ' }}
           </button>
         </div>
       </div>
@@ -278,9 +285,10 @@
           <button
             type="button"
             class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
+            [disabled]="savingEditTable()"
             (click)="saveEditTable()"
           >
-            บันทึก
+            {{ savingEditTable() ? 'กำลังบันทึก...' : 'บันทึก' }}
           </button>
         </div>
       </div>

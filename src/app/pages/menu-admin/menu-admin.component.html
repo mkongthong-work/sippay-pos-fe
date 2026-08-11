@@ -58,6 +58,7 @@
                   type="button"
                   class="item-admin-archive-btn"
                   title="เก็บเมนูนี้"
+                  [disabled]="isBusy('item-' + item.id)"
                   (click)="$event.stopPropagation(); archiveItem(item)"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -78,6 +79,7 @@
                     type="button"
                     class="status-pill status-pill-btn"
                     [class.available]="item.is_available"
+                    [disabled]="isBusy('item-avail-' + item.id)"
                     (click)="$event.stopPropagation(); toggleAvailable(item)"
                   >
                     {{ item.is_available ? 'เปิดขาย' : 'ปิดขาย' }}
@@ -114,11 +116,13 @@
                 {{ cat.is_enabled ? 'เปิดใช้' : 'ปิดใช้' }}
               </span>
               <span class="reorder-btns">
-                <button type="button" [disabled]="i === 0" (click)="moveCategory(cat, -1)" title="เลื่อนขึ้น">▲</button>
-                <button type="button" [disabled]="i === count - 1" (click)="moveCategory(cat, 1)" title="เลื่อนลง">▼</button>
+                <button type="button" [disabled]="i === 0 || isBusy('cat-move-' + cat.id)" (click)="moveCategory(cat, -1)" title="เลื่อนขึ้น">▲</button>
+                <button type="button" [disabled]="i === count - 1 || isBusy('cat-move-' + cat.id)" (click)="moveCategory(cat, 1)" title="เลื่อนลง">▼</button>
               </span>
               <button type="button" class="icon-text-btn" (click)="openEditCategoryForm(cat)" title="แก้ไข">แก้ไข</button>
-              <button type="button" class="icon-text-btn" (click)="archiveCategory(cat)" title="เก็บ">เก็บ</button>
+              <button type="button" class="icon-text-btn" [disabled]="isBusy('cat-' + cat.id)" (click)="archiveCategory(cat)" title="เก็บ">
+                {{ isBusy('cat-' + cat.id) ? 'กำลังเก็บ...' : 'เก็บ' }}
+              </button>
             </li>
           } @empty {
             <li class="empty">ยังไม่มีหมวดหมู่</li>
@@ -170,8 +174,10 @@
                 </div>
                 <div class="item-admin-actions">
                   <button type="button" class="icon-text-btn" (click)="openEditTemplateForm(tpl)">แก้ไข</button>
-                  <button type="button" class="icon-text-btn" (click)="archiveTemplate(tpl)">เก็บ</button>
-                  <button type="button" class="icon-text-btn danger" (click)="confirmDeleteTemplate(tpl)">ลบ</button>
+                  <button type="button" class="icon-text-btn" [disabled]="isBusy('tpl-' + tpl.id)" (click)="archiveTemplate(tpl)">
+                    {{ isBusy('tpl-' + tpl.id) ? 'กำลังเก็บ...' : 'เก็บ' }}
+                  </button>
+                  <button type="button" class="icon-text-btn danger" [disabled]="isBusy('tpl-' + tpl.id)" (click)="confirmDeleteTemplate(tpl)">ลบ</button>
                 </div>
               </div>
             } @empty {
@@ -193,7 +199,9 @@
               <div class="category-row-main">
                 <strong>{{ cat.name }}</strong>
               </div>
-              <button type="button" class="icon-text-btn" (click)="restoreCategory(cat)">กู้คืน</button>
+              <button type="button" class="icon-text-btn" [disabled]="isBusy('cat-' + cat.id)" (click)="restoreCategory(cat)">
+                {{ isBusy('cat-' + cat.id) ? 'กำลังกู้คืน...' : 'กู้คืน' }}
+              </button>
             </li>
           } @empty {
             <li class="empty">ไม่มีหมวดหมู่ที่เก็บถาวร</li>
@@ -208,7 +216,9 @@
                 <strong>{{ tpl.name }}</strong>
                 <span class="category-row-meta">{{ templateSelectionLabel(tpl) }}</span>
               </div>
-              <button type="button" class="icon-text-btn" (click)="restoreTemplate(tpl)">กู้คืน</button>
+              <button type="button" class="icon-text-btn" [disabled]="isBusy('tpl-' + tpl.id)" (click)="restoreTemplate(tpl)">
+                {{ isBusy('tpl-' + tpl.id) ? 'กำลังกู้คืน...' : 'กู้คืน' }}
+              </button>
             </li>
           } @empty {
             <li class="empty">ไม่มีตัวเลือกเสริมที่เก็บถาวร</li>
@@ -228,8 +238,10 @@
                 <strong>{{ item.name }}</strong>
                 <span class="category-row-meta">{{ categoryName(item.category_id) }} · {{ item.price | number: '1.2-2' }} บาท</span>
               </div>
-              <button type="button" class="icon-text-btn" (click)="restoreItem(item)">กู้คืน</button>
-              <button type="button" class="icon-text-btn danger" (click)="confirmDeleteItem(item)">ลบถาวร</button>
+              <button type="button" class="icon-text-btn" [disabled]="isBusy('item-' + item.id)" (click)="restoreItem(item)">
+                {{ isBusy('item-' + item.id) ? 'กำลังกู้คืน...' : 'กู้คืน' }}
+              </button>
+              <button type="button" class="icon-text-btn danger" [disabled]="isBusy('item-' + item.id)" (click)="confirmDeleteItem(item)">ลบถาวร</button>
             </li>
           } @empty {
             <li class="empty">ไม่มีเมนูที่เก็บถาวร</li>
@@ -245,7 +257,9 @@
       <h1>{{ $any(view()).editingId !== null ? 'แก้ไขหมวดหมู่' : 'เพิ่มหมวดหมู่' }}</h1>
       <div class="page-form-header-actions">
         <button type="button" class="ghost-btn" (click)="closeCategoryForm()">ยกเลิก</button>
-        <button type="button" class="primary-btn" (click)="saveCategoryForm()">บันทึก</button>
+        <button type="button" class="primary-btn" [disabled]="savingCategory()" (click)="saveCategoryForm()">
+          {{ savingCategory() ? 'กำลังบันทึก...' : 'บันทึก' }}
+        </button>
       </div>
     </div>
 
@@ -296,7 +310,9 @@
       <h1>{{ itemFormEditingItem() ? 'แก้ไขเมนู/สินค้า' : 'เพิ่มเมนู/สินค้าใหม่' }}</h1>
       <div class="page-form-header-actions">
         <button type="button" class="ghost-btn" (click)="closeItemForm()">ยกเลิก</button>
-        <button type="button" class="primary-btn" (click)="saveItemForm()">บันทึกเมนู</button>
+        <button type="button" class="primary-btn" [disabled]="savingItem()" (click)="saveItemForm()">
+          {{ savingItem() ? 'กำลังบันทึก...' : 'บันทึกเมนู' }}
+        </button>
       </div>
     </div>
 
@@ -357,7 +373,9 @@
               <input type="file" accept="image/*" (change)="onItemImageSelected($event)" hidden />
             </label>
             @if (itemFormImagePreviewUrl()) {
-              <button type="button" class="icon-text-btn danger" (click)="removeItemImage()">ลบรูป</button>
+              <button type="button" class="icon-text-btn danger" [disabled]="itemFormUploadingImage()" (click)="removeItemImage()">
+                ลบรูป
+              </button>
             }
           </div>
         </div>
@@ -379,7 +397,9 @@
                         ({{ group.selection_type === 'multi' ? 'เลือกได้หลายอย่าง' : 'เลือกได้อย่างเดียว' }}{{ group.is_required ? ' · บังคับเลือก' : '' }})
                       </span>
                       <button type="button" class="link-btn" (click)="openEditOptionGroupForm(editingItem, group)">แก้ไข</button>
-                      <button type="button" class="link-btn danger" (click)="deleteGroup(editingItem, group.id)">ลบ</button>
+                      <button type="button" class="link-btn danger" [disabled]="isBusy('group-' + group.id)" (click)="deleteGroup(editingItem, group.id)">
+                        {{ isBusy('group-' + group.id) ? 'กำลังลบ...' : 'ลบ' }}
+                      </button>
                     </div>
                   </li>
                 }
@@ -392,7 +412,14 @@
               <div class="border-t border-gray-200 pt-2 mt-2">
                 <p class="text-xs text-gray-500 mb-1">หรือใช้ค่าเริ่มต้นจากหมวดหมู่นี้:</p>
                 @for (tpl of itemFormCategoryTemplates(); track tpl.id) {
-                  <button type="button" class="template-chip" (click)="applyTemplateToCurrentItem(tpl)">{{ tpl.name }}</button>
+                  <button
+                    type="button"
+                    class="template-chip"
+                    [disabled]="isBusy('apply-tpl-' + tpl.id)"
+                    (click)="applyTemplateToCurrentItem(tpl)"
+                  >
+                    {{ isBusy('apply-tpl-' + tpl.id) ? 'กำลังใช้...' : tpl.name }}
+                  </button>
                 }
               </div>
             }
@@ -412,7 +439,9 @@
       <h1>{{ $any(view()).editingGroupId !== null ? 'แก้ไขกลุ่มตัวเลือก' : 'เพิ่มกลุ่มตัวเลือก' }}</h1>
       <div class="page-form-header-actions">
         <button type="button" class="ghost-btn" (click)="closeOptionGroupForm()">ยกเลิก</button>
-        <button type="button" class="primary-btn" (click)="saveOptionGroupForm()">บันทึก</button>
+        <button type="button" class="primary-btn" [disabled]="savingGroup()" (click)="saveOptionGroupForm()">
+          {{ savingGroup() ? 'กำลังบันทึก...' : 'บันทึก' }}
+        </button>
       </div>
     </div>
 
@@ -528,7 +557,9 @@
       <h1>{{ templateFormEditingId !== null ? 'แก้ไขตัวเลือกเสริม' : 'เพิ่มตัวเลือกเสริม' }}</h1>
       <div class="page-form-header-actions">
         <button type="button" class="ghost-btn" (click)="closeTemplateForm()">ยกเลิก</button>
-        <button type="button" class="primary-btn" (click)="saveTemplateForm()">บันทึก</button>
+        <button type="button" class="primary-btn" [disabled]="savingTemplate()" (click)="saveTemplateForm()">
+          {{ savingTemplate() ? 'กำลังบันทึก...' : 'บันทึก' }}
+        </button>
       </div>
     </div>
 
