@@ -1,77 +1,472 @@
-h1 {
-  margin-bottom: 1rem;
-}
-
-.row {
+// ==================== หัวหน้า + ปุ่มสลับช่วงเวลา (ดีไซน์ 7a) ====================
+.reports-header {
   display: flex;
   align-items: flex-end;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
+  h1 {
+    margin: 0;
   }
+}
 
-  input {
-    padding: 0.5rem;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-  }
+.reports-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+// กลุ่มปุ่มสลับช่วงเวลาแบบ segmented — พื้นอ่อน ปุ่มที่เลือกอยู่เป็นสีขาวมีเงา
+.period-toggle {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--color-bg);
+  padding: 0.25rem;
+  border-radius: 10px;
+  flex-wrap: wrap;
 
   button {
-    padding: 0.55rem 1rem;
-    border-radius: 6px;
+    padding: 0.5rem 1.1rem;
     border: none;
-    background: var(--color-accent);
-    color: white;
+    border-radius: 7px;
+    background: none;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
     cursor: pointer;
+
+    &.active {
+      background: white;
+      color: var(--color-primary);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
   }
 }
 
-.summary {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+.custom-date-row {
+  margin-bottom: 1.25rem;
+
+  input {
+    padding: 0.5rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    font: inherit;
+  }
 }
 
-.stat {
-  flex: 1;
-  padding: 1.25rem;
-  border-radius: 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+// ==================== การ์ดสรุป 4 ใบ ====================
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.summary-card {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: 13px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 
-  .label {
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
-  }
+  &.summary-card--accent {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
 
-  .value {
-    font-size: 1.6rem;
-    font-weight: 700;
+    .summary-label,
+    .summary-sub {
+      color: rgba(255, 255, 255, 0.72);
+    }
   }
 }
 
-.top-items {
-  width: 100%;
-  border-collapse: collapse;
+.summary-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
 
-  th,
-  td {
-    text-align: left;
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--color-border);
+.summary-value {
+  font: 700 1.6rem/1.15 'IBM Plex Mono', monospace;
+
+  &.summary-value--sm {
+    font-size: 1.15rem;
+  }
+}
+
+.summary-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+
+  &.warn {
+    color: var(--color-warn);
+    font-weight: 600;
+  }
+}
+
+// ==================== กราฟช่วงเวลา + เมนูขายดี (2 คอลัมน์) ====================
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.chart-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  padding: 0.95rem 1.05rem;
+  margin-bottom: 0;
+}
+
+.chart-card-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 170px;
+
+  &.chart-canvas-wrap--wide {
+    height: 280px;
+  }
+}
+
+// ---- เมนูขายดี 5 อันดับ แบบแท่ง progress bar (แทนกราฟแท่งเดิม) ----
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.rank-idx {
+  width: 14px;
+  flex: none;
+  font: 600 0.75rem 'IBM Plex Mono', monospace;
+  color: var(--color-text-muted);
+}
+
+.rank-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-bar-track {
+  width: 96px;
+  flex: none;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.rank-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 4px;
+}
+
+.rank-qty {
+  width: 30px;
+  flex: none;
+  text-align: right;
+  font: 600 0.8rem 'IBM Plex Mono', monospace;
+}
+
+// ==================== ตารางบิล ====================
+.bills-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.bills-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.05rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bills-toolbar-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin-right: 0.3rem;
+}
+
+.filter-chip {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+
+  &.active {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  &.filter-chip--solid.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+  }
+
+  &.filter-chip--warn {
+    border-color: var(--color-warn-bg);
+    background: var(--color-warn-bg);
+    color: var(--color-warn);
+    font-weight: 600;
+
+    &.active {
+      background: var(--color-warn);
+      border-color: var(--color-warn);
+      color: white;
+    }
+  }
+}
+
+.export-btn {
+  margin-left: auto;
+  height: 34px;
+  padding: 0 0.85rem;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+// ตารางแบบ CSS grid — ตัดคอลัมน์ปุ่ม action ออก คลิกทั้งแถวแทน (ดีไซน์ 7a)
+.bills-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.bills-row {
+  display: grid;
+  grid-template-columns: 78px 130px 100px 1fr 1fr 72px 130px;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.7rem 1.05rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--color-bg);
+  }
+
+  &.bills-row--head {
+    cursor: default;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    letter-spacing: 0.02em;
+    background: var(--color-bg);
+
+    &:hover {
+      background: var(--color-bg);
+    }
+  }
+}
+
+.align-right {
+  text-align: right;
+}
+
+.bill-id {
+  font: 600 0.82rem 'IBM Plex Mono', monospace;
+  color: var(--color-primary);
+}
+
+.bill-amount {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+}
+
+.bill-time {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.bill-payment {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.slip-status {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-warn-bg);
+  color: var(--color-warn);
+
+  &.has-slip {
+    background: var(--color-accent-bg);
+    color: var(--color-accent-dark);
   }
 }
 
 .empty {
   color: var(--color-text-muted);
   text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+// ==================== empty/loading/error states (ดีไซน์ 6b) ====================
+.skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.skeleton-card {
+  height: 90px;
+  border-radius: 13px;
+  background: #f1eee8;
+}
+
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.55rem;
+  padding: 1.6rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+
+  &.state-box--error {
+    border-color: #f3dddb;
+    background: #fdf4f3;
+  }
+}
+
+.state-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #f3f1ec;
+  color: #b5af9f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.state-icon--error {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+  }
+}
+
+.state-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  &.state-title--error {
+    color: #8e2f29;
+  }
+}
+
+.state-desc {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+
+  &.state-desc--error {
+    color: var(--color-danger);
+  }
+}
+
+.state-btn {
+  margin-top: 0.15rem;
+  height: 38px;
+  padding: 0 1rem;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  &.state-btn--error {
+    border: none;
+    background: var(--color-danger);
+    color: white;
+    font-weight: 600;
+
+    &:hover {
+      opacity: 0.92;
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .summary-cards,
+  .skeleton-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bills-row {
+    grid-template-columns: 70px 110px 90px 1fr 90px;
+
+    span:nth-child(5),
+    span:nth-child(6) {
+      display: none;
+    }
+  }
 }

@@ -3,8 +3,7 @@ h1 {
   font-size: 1.2rem;
 }
 
-// เพจนี้เต็มความสูงของพื้นที่เนื้อหา (ไม่ scroll ทั้งหน้า) แล้ววาง 3 ส่วนเรียงกันแนวนอน
-// เป็นคอลัมน์ (รายการ / ยอดรวม / ชำระเงิน) — มีแค่คอลัมน์ "รายการ" เท่านั้นที่ scroll ได้ภายในตัวเอง
+// เพจนี้เต็มความสูงของพื้นที่เนื้อหา (ไม่ scroll ทั้งหน้า)
 :host {
   display: block;
   height: 100%;
@@ -17,15 +16,17 @@ h1 {
   min-height: 0;
 }
 
+// เต็มจอจริงๆ (ไม่จำกัด max-width) — ให้ container ชั้นนอก (.content.full-bleed ใน shell) ตัด padding
+// ออกไปแล้ว หน้านี้จึงเว้นระยะขอบเองแทน กว้างเท่าจอเสมอ กดปุ่มง่ายขึ้นโดยเฉพาะจอสัมผัส
 .checkout-column {
-  max-width: 1100px;
   width: 100%;
-  margin: 0 auto;
   height: 100%;
+  padding: 0.6rem 1rem 0.75rem;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  gap: 0.6rem;
+  gap: 0.75rem;
 }
 
 .checkout-header {
@@ -36,32 +37,62 @@ h1 {
   gap: 0.5rem;
 }
 
-// แถวหลัก วาง 3 ส่วนเรียงกันเป็นคอลัมน์แนวนอน (align-items: stretch ค่า default
-// ทำให้แต่ละคอลัมน์สูงเท่ากับพื้นที่ที่เหลือทั้งหมดโดยอัตโนมัติ)
-.checkout-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: row;
-  gap: 0.75rem;
+.opened-by {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
 }
 
-// ---- ส่วนที่ 1: รายการ (คอลัมน์ซ้าย 30%, scroll ได้) ----
-.items-section {
-  flex: 0 0 calc(30% - 0.5rem);
-  min-width: 0;
+// ==================== ดีไซน์ 2 คอลัมน์: ซ้าย (รายการ/สมาชิก/ส่วนลด/ยอดชำระ/วิธีจ่าย) ====================
+// ==================== ขวา (แป้นกดเงิน + ยืนยัน + พิมพ์ใบเสร็จ) ====================
+.checkout-body-v2 {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 0.9rem;
+}
+
+.payment-left {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-right: 0.2rem;
+}
+
+// ---- การ์ดรายการอาหาร ----
+.items-card {
+  flex: none;
+  max-height: 220px;
   overflow-y: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 0.75rem 1rem;
+}
+
+.items-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
 
   h2 {
-    margin: 0 0 0.4rem;
+    margin: 0;
     font-size: 0.85rem;
     color: var(--color-text-muted);
     font-weight: 600;
   }
+}
+
+.items-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
 }
 
 .items-list {
@@ -120,51 +151,28 @@ h1 {
   margin-top: 0.1rem;
 }
 
-// ---- ส่วนที่ 2: ยอดรวม + ส่วนลด (คอลัมน์กลาง 20%) ----
-.totals-section {
-  flex: 0 0 calc(30% - 0.5rem);
-  min-width: 180px;
-  overflow-y: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 0.6rem 1rem;
-}
-
-.row {
+// ---- แถวรวม "เพิ่มสมาชิก" + "ใส่ส่วนลด" + "แยกชำระ" — 3 ปุ่มความกว้างเท่ากัน (ดีไซน์ 4a) ----
+.quick-actions-row {
   display: flex;
-  justify-content: space-between;
-  padding: 0.15rem 0;
-  font-size: 0.9rem;
-
-  &.discount {
-    color: var(--color-danger);
-  }
-
-  &.total {
-    font-weight: 700;
-    font-size: 1rem;
-    border-top: 1px solid var(--color-border);
-    margin-top: 0.2rem;
-    padding-top: 0.35rem;
-  }
-
-  &.change {
-    font-weight: 700;
-    font-size: 1.15rem;
-    color: var(--color-primary);
-  }
+  gap: 0.6rem;
 }
 
-.ghost-btn {
-  width: 100%;
-  margin-top: 0.4rem;
-  padding: 0.45rem;
-  border-radius: 8px;
+// ---- ปุ่ม "เพิ่มสมาชิก" — placeholder เหมือนหน้า POS (ยังไม่มีระบบสมาชิกจริง) ----
+.member-btn {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 0.5rem;
+  border-radius: 10px;
   border: 1px dashed var(--color-border);
-  background: transparent;
+  background: white;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font: inherit;
+  font-size: 0.9rem;
   cursor: pointer;
 
   &:hover {
@@ -173,10 +181,37 @@ h1 {
   }
 }
 
+// ---- ส่วนลด / แยกชำระ ----
+.ghost-btn {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
 .discount-box {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--color-border);
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -218,151 +253,83 @@ h1 {
   font-size: 0.85rem;
 }
 
-// ---- ส่วนที่ 3: ยอดที่ต้องชำระ + แป้นกดเงินสด (คอลัมน์ขวา 50%) ----
-.payment-section {
-  flex: 0 0 calc(40% - 0.5rem);
-  min-width: 260px;
+// ---- การ์ดยอดรวม/ส่วนลด (ดีไซน์ 4a: อยู่ในกรอบการ์ดเหมือนการ์ดอื่นๆ ในคอลัมน์) ----
+.totals-mini {
+  flex: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 0.75rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+  font-size: 0.88rem;
+
+  &.discount {
+    color: var(--color-accent-dark);
+  }
+
+  &.change {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--color-primary);
+  }
+}
+
+// ---- แถบกรมท่าทึบ "ยอดที่ต้องชำระ" — ก้อนที่ใหญ่ที่สุดในหน้า (ดีไซน์ 4a: แคชเชียร์อ่านค่านี้บ่อยที่สุด) ----
+.due-box {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--color-primary);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+.due-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.due-amount {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+// ปุ่ม "แยกชำระ" ตอนนี้อยู่ในแถว .quick-actions-row (ใช้สไตล์ .ghost-btn ร่วมกัน) ไม่ได้อยู่ใน .due-box แล้ว
+
+// ==================== คอลัมน์ขวา: <app-payment-panel> (เลือกวิธีชำระ + แป้นกดเงิน/QR + ยืนยัน) ====================
+// สไตล์ของส่วนควบคุมการจ่ายเงินเอง (แท็บวิธีชำระ/แป้นกด/QR/ปุ่มยืนยัน ฯลฯ) ย้ายไปอยู่ใน
+// payment-panel.component.scss แล้ว เพราะตอนนี้ checkout/POS/คิวออเดอร์ใช้ <app-payment-panel> ตัวเดียวกัน
+// เหลือแค่กรอบการ์ด (.payment-right) กับ checkbox พิมพ์ใบเสร็จอัตโนมัติที่ยังเป็นของหน้านี้โดยเฉพาะ
+.payment-right {
+  min-height: 0;
   overflow-y: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  padding: 0.75rem 1rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
-.due-row {
+.auto-print-check {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--color-border);
-
-  .due-amount {
-    font-size: 1.25rem;
-    font-weight: 700;
-  }
-}
-
-.received-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-
-  input {
-    padding: 0.5rem;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-    font-size: 1.1rem;
-    box-sizing: border-box;
-  }
-}
-
-.keypad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.4rem;
-
-  button {
-    padding: 0.55rem 0;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    background: white;
-    font-size: 1.05rem;
-    font-weight: 600;
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--color-primary);
-    }
-
-    &:active {
-      background: var(--color-highlight-bg);
-    }
-  }
-
-  .keypad-clear {
-    color: var(--color-danger);
-    border-color: var(--color-danger);
-  }
-
-  .keypad-backspace {
-    color: var(--color-text-muted);
-  }
-}
-
-.quick-amounts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.quick-amount-btn {
-  flex: 1 0 calc(33% - 0.35rem);
-  padding: 0.4rem 0.4rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: white;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--color-primary);
-  }
-
-  &.active {
-    background: var(--color-primary);
-    color: white;
-    border-color: var(--color-primary);
-  }
-}
-
-.change-display {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.1rem;
-  padding: 0.6rem;
-  border-radius: 8px;
-  background: var(--color-highlight-bg);
-  text-align: center;
-}
-
-.change-label {
-  font-size: 0.8rem;
+  gap: 0.4rem;
+  font-size: 0.82rem;
   color: var(--color-text-muted);
-}
-
-.change-value {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
-.confirm-btn {
-  width: 100%;
-  padding: 0.8rem;
-  border-radius: 8px;
-  border: none;
-  background: var(--color-accent);
-  color: white;
-  font-size: 1.05rem;
   cursor: pointer;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-}
-
-.warn {
-  color: var(--color-danger);
-  font-size: 0.85rem;
-  margin: 0;
 }
 
 .error {
@@ -396,12 +363,13 @@ h1 {
   text-align: left;
 }
 
+// "กลับไปหน้าออเดอร์" ไม่ใช่ปุ่มยืนยันชำระเงิน (บิลปิดไปแล้วก่อนหน้านี้) จึงใช้กรมท่า
 .paid-panel .primary {
   width: 100%;
   padding: 0.8rem;
   border: none;
   border-radius: 8px;
-  background: var(--color-accent);
+  background: var(--color-primary);
   color: white;
   font-size: 1rem;
   cursor: pointer;

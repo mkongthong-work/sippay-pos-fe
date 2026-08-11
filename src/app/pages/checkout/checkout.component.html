@@ -12,182 +12,261 @@
           <div class="paid-summary">
             <div class="row">
               <span>ยอดสุทธิ</span>
-              <span>{{ paid.total_amount | number: '1.0-0' }} บาท</span>
+              <span>{{ paid.total_amount | number: "1.2-2" }} บาท</span>
             </div>
             <div class="row">
               <span>รับเงินมา</span>
-              <span>{{ paid.payment?.received_amount | number: '1.0-0' }} บาท</span>
+              <span
+                >{{ paid.payment?.received_amount | number: "1.2-2" }} บาท</span
+              >
             </div>
             <div class="row change">
               <span>เงินทอน</span>
-              <span>{{ paid.payment?.change_amount | number: '1.0-0' }} บาท</span>
+              <span
+                >{{ paid.payment?.change_amount | number: "1.2-2" }} บาท</span
+              >
             </div>
+            @if (paid.payment?.method === "transfer") {
+              <div class="row">
+                <span>วิธีชำระ</span>
+                <span
+                  >โอนเงิน
+                  @if (paid.payment?.transfer_ref) {
+                    (ref: {{ paid.payment?.transfer_ref }})
+                  }
+                </span>
+              </div>
+            }
+            @if (paid.payment?.paid_by_user) {
+              <div class="row paid-by">
+                <span>ปิดบิลโดย</span>
+                <span>{{ paid.payment?.paid_by_user?.name }}</span>
+              </div>
+            }
           </div>
-          <button class="primary" (click)="backToOrders()">กลับไปหน้าออเดอร์</button>
+          <button type="button" (click)="openReceipt()">พิมพ์ใบเสร็จ</button>
+          <button
+            type="button"
+            [disabled]="downloadingInvoice()"
+            (click)="downloadInvoicePdf()"
+          >
+            {{ downloadingInvoice() ? "กำลังสร้าง PDF..." : "ดาวน์โหลด PDF" }}
+          </button>
+          <button class="primary" (click)="backToOrders()">
+            กลับไปหน้าออเดอร์
+          </button>
         </div>
+
+        @if (receiptOpen()) {
+          <app-receipt
+            [order]="paid"
+            [shop]="shopSettings()"
+            (close)="closeReceipt()"
+          ></app-receipt>
+        }
       } @else {
         <div class="checkout-column">
           <div class="checkout-header">
-            <h1>คิดเงิน — บิล #{{ o.id }}</h1>
+            <div>
+              <h1>คิดเงิน — บิล #{{ o.id }}</h1>
+              <!-- @if (o.created_by_user) {
+                <p class="opened-by">เปิดบิลโดย {{ o.created_by_user.name }}</p>
+              } -->
+            </div>
             <a routerLink="/orders" class="cancel-link">ยกเลิก / กลับ</a>
           </div>
 
-          <!-- แบ่ง 3 ส่วนแนวนอน: รายการ / ยอดรวม / ชำระเงิน วางเรียงกันเป็นคอลัมน์ -->
-          <div class="checkout-body">
-          <!-- ส่วนที่ 1: รายการสินค้า — scroll ได้ถ้ารายการเยอะ ส่วนที่เหลือ fix อยู่กับที่เสมอ -->
-          <section class="items-section">
-            <h2>รายการ ({{ o.items.length }})</h2>
-            <ul class="items-list">
-              @for (item of o.items; track item.id) {
-                <li>
-                  <div class="item-row">
-                    <span>
-                      {{ item.quantity }}x {{ item.menu_item?.name }}
-                      @if (item.is_takeaway) {
-                        <span class="takeaway-tag">กลับบ้าน</span>
-                      }
-                    </span>
-                    <span>{{ item.unit_price * item.quantity | number: '1.0-0' }}</span>
-                  </div>
-                  @if (item.options && item.options.length > 0) {
-                    <div class="item-options">
-                      @for (opt of item.options; track opt.id) {
-                        <span class="opt-tag">{{ opt.choice_name }}</span>
-                      }
-                    </div>
-                  }
-                  @if (item.note) {
-                    <div class="item-note">หมายเหตุ: {{ item.note }}</div>
-                  }
-                </li>
-              }
-            </ul>
-          </section>
+          <!-- app-payment-panel ตัวเดียวกับที่ใช้ในหน้า POS/คิวออเดอร์ แต่เปิด [split]="true" — component
+               เองไม่วาดอะไรเลย (ดู :host.split ใน payment-panel.component.scss) แค่ถือ state/logic ไว้ให้
+               .payment-left/.payment-right ด้านล่างดึง leftTpl/rightTpl ไปวางเองผ่าน *ngTemplateOutlet
+               เพื่อรักษาเลย์เอาต์ 2 คอลัมน์แบบเดิมของหน้านี้ไว้ (ต่างจาก POS/คิวออเดอร์ที่เป็น popup คอลัมน์เดียว) -->
+          <app-payment-panel
+            #panel="appPaymentPanel"
+            [order]="o"
+            [shop]="shopSettings()"
+            [split]="true"
+            (paid)="onPaid($event)"
+          ></app-payment-panel>
 
-          <!-- ส่วนที่ 2: ยอดรวม (รวมส่วนลด) — fix อยู่ล่างเสมอ ไม่ scroll หายไปพร้อมรายการ -->
-          <section class="totals-section">
-            <div class="row">
-              <span>ยอดรวม</span>
-              <span>{{ o.subtotal | number: '1.0-0' }} บาท</span>
-            </div>
-            @if (o.discount_amount > 0) {
-              <div class="row discount">
-                <span>ส่วนลด</span>
-                <span>-{{ o.discount_amount | number: '1.0-0' }} บาท</span>
+          <!-- ดีไซน์ 2 คอลัมน์: ซ้าย = รายการ/สมาชิก/ส่วนลด/ยอดชำระ/วิธีจ่าย, ขวา = แป้นกดเงิน + ยืนยัน -->
+          <div class="checkout-body-v2">
+            <!-- ==================== คอลัมน์ซ้าย ==================== -->
+            <section class="payment-left">
+              <div class="items-card">
+                <div class="items-card-head">
+                  <h2>ทบทวนรายการอาหาร</h2>
+                  <span class="items-count">{{ itemsCount(o) }} ชิ้น</span>
+                </div>
+                <ul class="items-list">
+                  @for (item of o.items; track item.id) {
+                    <li>
+                      <div class="item-row">
+                        <span>
+                          {{ item.quantity }}x {{ item.menu_item?.name }}
+                          @if (item.is_takeaway) {
+                            <span class="takeaway-tag">กลับบ้าน</span>
+                          }
+                        </span>
+                        <span>{{
+                          item.unit_price * item.quantity | number: "1.2-2"
+                        }}</span>
+                      </div>
+                      @if (item.options && item.options.length > 0) {
+                        <div class="item-options">
+                          @for (opt of item.options; track opt.id) {
+                            <span class="opt-tag">{{ opt.choice_name }}</span>
+                          }
+                        </div>
+                      }
+                      @if (item.note) {
+                        <div class="item-note">หมายเหตุ: {{ item.note }}</div>
+                      }
+                    </li>
+                  }
+                </ul>
               </div>
-            }
-            <div class="row total">
-              <span>ยอดสุทธิ</span>
-              <span>{{ o.total_amount | number: '1.0-0' }} บาท</span>
-            </div>
 
-            @if (discountOpen()) {
-              <div class="discount-box">
-                <div class="discount-box-head">
-                  <h3>ส่วนลด</h3>
-                  <button type="button" class="link" (click)="closeDiscount()">ปิด</button>
-                </div>
-                <div class="discount-type">
-                  <label>
-                    <input type="radio" name="discountType" value="none" [(ngModel)]="discountType" />
-                    ไม่มี
-                  </label>
-                  <label>
-                    <input type="radio" name="discountType" value="amount" [(ngModel)]="discountType" />
-                    จำนวนเงิน (บาท)
-                  </label>
-                  <label>
-                    <input type="radio" name="discountType" value="percent" [(ngModel)]="discountType" />
-                    เปอร์เซ็นต์ (%)
-                  </label>
-                </div>
-
-                @if (discountType !== 'none') {
-                  <div class="discount-input">
-                    <input
-                      type="number"
-                      min="0"
-                      [(ngModel)]="discountValue"
-                      [placeholder]="discountType === 'percent' ? 'เช่น 10' : 'เช่น 50'"
-                    />
-                  </div>
-                }
-
-                <button class="primary" (click)="applyDiscount()" [disabled]="applyingDiscount()">
-                  {{ applyingDiscount() ? 'กำลังบันทึก...' : 'ใช้ส่วนลดนี้' }}
+              <div class="quick-actions-row">
+                <button
+                  type="button"
+                  class="member-btn"
+                  (click)="showMemberInfo()"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8.5" r="3.5" />
+                    <path d="M5 19.5a7 7 0 0 1 14 0" />
+                  </svg>
+                  เพิ่มสมาชิก
                 </button>
-              </div>
-            } @else if (o.discount_amount > 0) {
-              <button type="button" class="ghost-btn" (click)="openDiscount()">แก้ไขส่วนลด</button>
-            } @else {
-              <button type="button" class="ghost-btn" (click)="openDiscount()">+ ใส่ส่วนลด</button>
-            }
-          </section>
-
-          <!-- ส่วนที่ 3: ยอดที่ต้องชำระ + แป้นกดเงินสดแบบเครื่องคิดเลข — fix อยู่ล่างสุดเสมอ -->
-          <section class="payment-section">
-            <div class="due-row">
-              <span>ยอดที่ต้องชำระ</span>
-              <span class="due-amount">{{ o.total_amount | number: '1.0-0' }} บาท</span>
-            </div>
-
-            <label class="received-label">
-              รับเงินมา
-              <input
-                type="number"
-                min="0"
-                [ngModel]="receivedAmount()"
-                (ngModelChange)="onReceivedAmountChange($event)"
-              />
-            </label>
-
-            <div class="keypad">
-              <button type="button" (click)="pressDigit('7')">7</button>
-              <button type="button" (click)="pressDigit('8')">8</button>
-              <button type="button" (click)="pressDigit('9')">9</button>
-              <button type="button" (click)="pressDigit('4')">4</button>
-              <button type="button" (click)="pressDigit('5')">5</button>
-              <button type="button" (click)="pressDigit('6')">6</button>
-              <button type="button" (click)="pressDigit('1')">1</button>
-              <button type="button" (click)="pressDigit('2')">2</button>
-              <button type="button" (click)="pressDigit('3')">3</button>
-              <button type="button" class="keypad-clear" (click)="pressClear()">C</button>
-              <button type="button" (click)="pressDigit('0')">0</button>
-              <button type="button" class="keypad-backspace" (click)="pressBackspace()">⌫</button>
-            </div>
-
-            @if (quickAmounts().length > 0) {
-              <div class="quick-amounts">
-                @for (amt of quickAmounts(); track amt) {
+                @if (o.discount_amount > 0) {
                   <button
                     type="button"
-                    class="quick-amount-btn"
-                    [class.active]="receivedAmount() === amt"
-                    (click)="selectAmount(amt)"
+                    class="ghost-btn"
+                    (click)="openDiscount()"
                   >
-                    {{ amt | number: '1.0-0' }}
+                    แก้ไขส่วนลด ({{ o.discount_amount | number: "1.2-2" }} บาท)
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="ghost-btn"
+                    (click)="openDiscount()"
+                  >
+                    ใส่ส่วนลด
                   </button>
                 }
+                <button
+                  type="button"
+                  class="ghost-btn split-btn"
+                  (click)="showSplitPaymentInfo()"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 17 17 7M9 7h8v8" />
+                  </svg>
+                  แยกชำระ
+                </button>
               </div>
-            }
 
-            <div class="change-display">
-              <span class="change-label">เงินทอน</span>
-              <span class="change-value">{{ change() | number: '1.0-0' }} บาท</span>
-            </div>
+              @if (discountOpen()) {
+                <div class="discount-box">
+                  <div class="discount-box-head">
+                    <h3>ส่วนลด</h3>
+                    <button
+                      type="button"
+                      class="link"
+                      (click)="closeDiscount()"
+                    >
+                      ปิด
+                    </button>
+                  </div>
+                  <div class="discount-type">
+                    <label>
+                      <input
+                        type="radio"
+                        name="discountType"
+                        value="none"
+                        [(ngModel)]="discountType"
+                      />
+                      ไม่มี
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="discountType"
+                        value="amount"
+                        [(ngModel)]="discountType"
+                      />
+                      จำนวนเงิน (บาท)
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="discountType"
+                        value="percent"
+                        [(ngModel)]="discountType"
+                      />
+                      เปอร์เซ็นต์ (%)
+                    </label>
+                  </div>
 
-            @if (shortfall() > 0) {
-              <p class="warn">รับเงินไม่พอ ขาดอีก {{ shortfall() | number: '1.0-0' }} บาท</p>
-            }
+                  @if (discountType !== "none") {
+                    <div class="discount-input">
+                      <input
+                        type="number"
+                        min="0"
+                        [(ngModel)]="discountValue"
+                        [placeholder]="
+                          discountType === 'percent' ? 'เช่น 10' : 'เช่น 50'
+                        "
+                      />
+                    </div>
+                  }
 
-            @if (error()) {
-              <p class="error">{{ error() }}</p>
-            }
+                  <button
+                    class="primary"
+                    (click)="applyDiscount()"
+                    [disabled]="applyingDiscount()"
+                  >
+                    {{ applyingDiscount() ? "กำลังบันทึก..." : "ใช้ส่วนลดนี้" }}
+                  </button>
+                </div>
+              }
 
-            <button class="primary confirm-btn" (click)="confirmPayment()" [disabled]="paying()">
-              {{ paying() ? 'กำลังบันทึก...' : 'ยืนยันชำระเงิน' }}
-            </button>
-          </section>
+              <div class="totals-mini">
+                <div class="row">
+                  <span>ยอดรวม</span>
+                  <span>{{ o.subtotal | number: "1.2-2" }} บาท</span>
+                </div>
+                @if (o.discount_amount > 0) {
+                  <div class="row discount">
+                    <span>ส่วนลด</span>
+                    <span>-{{ o.discount_amount | number: "1.2-2" }} บาท</span>
+                  </div>
+                }
+              </div>
+
+              <div class="due-box">
+                <span class="due-label">ยอดที่ต้องชำระ</span>
+                <span class="due-amount">฿{{ o.total_amount | number: "1.2-2" }}</span>
+              </div>
+
+              <!-- เลือกวิธีชำระ + QR/เงินทอน — มาจาก app-payment-panel (leftTpl) ด้านบนนี้เอง -->
+              <ng-container *ngTemplateOutlet="panel.leftTpl"></ng-container>
+            </section>
+
+            <!-- ==================== คอลัมน์ขวา: กรอกจำนวนเงิน/แป้นกด/ปุ่มยืนยัน ====================
+                 มาจาก app-payment-panel (rightTpl) ตัวเดียวกับ popup "ชำระเงินเลย" ที่หน้า POS และ popup
+                 "ชำระเงินก่อน" ที่หน้าคิวออเดอร์ — logic/พฤติกรรมจึงเหมือนกันทั้ง 3 จุด ต่างแค่ตำแหน่งวาง UI -->
+            <section class="payment-right">
+              <ng-container *ngTemplateOutlet="panel.rightTpl"></ng-container>
+
+              <label class="auto-print-check">
+                <input type="checkbox" [(ngModel)]="autoPrintAfterPayment" />
+                พิมพ์ใบเสร็จหลังเก็บเงิน
+              </label>
+
+              <ng-container *ngTemplateOutlet="panel.confirmTpl"></ng-container>
+            </section>
           </div>
         </div>
       }

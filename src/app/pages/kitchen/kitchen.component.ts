@@ -4,29 +4,29 @@ import { CommonModule } from '@angular/common';
 import { OrderService } from '../../core/order.service';
 import { Order, OrderItem, OrderItemStatus } from '../../core/models';
 
-type KitchenTab = 'active' | 'done';
-
-// สถานีที่ไม่ได้ตั้งค่าไว้ (หมวดหมู่ไม่มี station หรือ preload ไม่ติดมา) ให้ตกกลุ่มนี้แทนที่จะหายไปเงียบๆ
-const UNASSIGNED_STATION = 'ไม่ระบุสถานี';
-
-interface StationGroup {
-  station: string;
-  items: OrderItem[];
+// เมนู 1 รายการ พร้อมอ้างอิงกลับไปที่บิล/โต๊ะที่มันสังกัดอยู่ — ใช้เป็นหน่วยการ์ดในบอร์ด 3 คอลัมน์
+interface KitchenCard {
+  order: Order;
+  item: OrderItem;
 }
 
+// จอครัวแบบบอร์ด 3 คอลัมน์ (เข้าใหม่ / กำลังทำ / เสิร์ฟแล้ว) ตามดีไซน์ต้นแบบ (DotPOS มี 4 คอลัมน์ คือแยก
+// "รับแล้ว" ออกจาก "เข้าใหม่" และ "พร้อมเสิร์ฟ" ออกจาก "เสิร์ฟแล้ว" แต่ระบบนี้เก็บสถานะรายเมนูแค่ 3 แบบ
+// pending/preparing/served จึงยุบเหลือ 3 คอลัมน์แทน ไม่เพิ่ม status ใหม่ที่ backend)
+// ทำงาน "ระดับรายเมนู" เหมือนเดิม — แต่ละเมนูในบิลขยับสถานะเป็นอิสระของตัวเอง ไม่ผูกไปกับเมนูอื่นในบิลเดียวกัน
+// (การ์ด 1 ใบ = เมนู 1 รายการ ไม่ใช่ 1 บิล เพราะบิลเดียวอาจมีเมนูอยู่คนละคอลัมน์พร้อมกันได้)
 @Component({
   selector: 'app-kitchen',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './kitchen.component.html'
+  templateUrl: './kitchen.component.html',
+  styleUrl: './kitchen.component.scss'
 })
 export class KitchenComponent implements OnInit, OnDestroy {
   orders = signal<Order[]>([]);
   loading = signal(false);
-
-  // แท็บ "กำลังทำ" รวมออเดอร์ที่ยังไม่เริ่มทำ (pending ล้วน) กับที่กำลังทำอยู่เข้าด้วยกัน
-  // ออเดอร์/รายการใหม่ที่เพิ่งสั่งเพิ่มเข้ามาจะเป็น pending เสมอ จึงตกอยู่แท็บนี้โดยอัตโนมัติ
-  activeTab = signal<KitchenTab>('active');
+  // true เมื่อโหลดออเดอร์ล่าสุดไม่สำเร็จ — โชว์กล่องแดง + ปุ่ม "ลองอีกครั้ง" (ดีไซน์ 6b)
+  loadError = signal(false);
 
   // เก็บ id ของรายการที่กำลังส่งอัปเดตอยู่ กันกดซ้ำ/โชว์สถานะกำลังบันทึก
   updatingItemIds = signal<Set<number>>(new Set());
@@ -35,31 +35,24 @@ export class KitchenComponent implements OnInit, OnDestroy {
   private now = signal(Date.now());
   private clockHandle: ReturnType<typeof setInterval> | null = null;
 
-  // ออเดอร์ที่ยังมีรายการค้างอยู่ (ยังไม่เริ่มทำ หรือกำลังทำ) — แสดงในแท็บ "กำลังทำ"
-  // เรียงเอาออเดอร์ที่เพิ่งส่งมาล่าสุดไว้บนสุดเสมอ
-  activeOrders = computed(() =>
-    this.orders()
-      .filter((o) => this.pendingCount(o) > 0)
-      .sort((a, b) => this.orderTimeMs(b) - this.orderTimeMs(a))
+  pendingCards = computed(() => this.cardsByStatus('pending'));
+  preparingCards = computed(() => this.cardsByStatus('preparing'));
+  servedCards = computed(() => this.cardsByStatus('served'));
+
+  // จำนวนรายการที่ยังไม่เสิร์ฟและรอเกิน 15 นาที — โชว์เป็นป้ายเตือนที่หัวจอ (ดีไซน์ 4b)
+  overdueCount = computed(
+    () => [...this.pendingCards(), ...this.preparingCards()].filter((c) => this.minutesAgo(c.order) >= 15).length
   );
 
-  // ออเดอร์ที่ทุกรายการเสิร์ฟครบแล้ว — แสดงในแท็บ "เสร็จทั้งหมด" (เรียงล่าสุดไว้บนสุดเช่นกัน)
-  doneOrders = computed(() =>
-    this.orders()
-      .filter((o) => this.pendingCount(o) === 0)
-      .sort((a, b) => this.orderTimeMs(b) - this.orderTimeMs(a))
-  );
-
-  // รายการที่จะแสดงตามแท็บที่เลือกอยู่
-  visibleOrders = computed(() =>
-    this.activeTab() === 'active' ? this.activeOrders() : this.doneOrders()
-  );
+  // เวลาปัจจุบัน HH:mm โชว์คู่กับข้อความ "อัปเดตอัตโนมัติทุก..." ที่หัวจอ — ขยับเองทุก 30 วิตาม this.now()
+  nowText = computed(() => {
+    const d = new Date(this.now());
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  });
 
   constructor(private orderService: OrderService) {}
-
-  selectTab(tab: KitchenTab): void {
-    this.activeTab.set(tab);
-  }
 
   ngOnInit(): void {
     this.refresh();
@@ -77,12 +70,26 @@ export class KitchenComponent implements OnInit, OnDestroy {
     return new Date(order.created_at).getTime();
   }
 
-  // เวลาส่งออเดอร์มาที่ครัว แสดงเป็น HH:mm
-  sentAtLabel(order: Order): string {
-    const date = new Date(order.created_at);
-    const hh = date.getHours().toString().padStart(2, '0');
-    const mm = date.getMinutes().toString().padStart(2, '0');
-    return `${hh}:${mm}`;
+  // รวมเมนูทุกใบที่มีสถานะตรงกับที่ขอ จากทุกออเดอร์ที่กำลังเปิดอยู่ เรียงบิลที่สั่งมาล่าสุดไว้บนสุด
+  private cardsByStatus(status: OrderItemStatus): KitchenCard[] {
+    const cards: KitchenCard[] = [];
+    for (const order of this.orders()) {
+      for (const item of order.items) {
+        if (item.status === status) {
+          cards.push({ order, item });
+        }
+      }
+    }
+    return cards.sort((a, b) => this.orderTimeMs(b.order) - this.orderTimeMs(a.order));
+  }
+
+  // เลขออเดอร์แบบอ่านง่าย เช่น ORD-20260806-00004 (รูปแบบเดียวกับหน้าออเดอร์/ใบเสร็จ)
+  orderCode(order: Order): string {
+    const d = new Date(order.created_at);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `ORD-${y}${m}${day}-${String(order.id).padStart(5, '0')}`;
   }
 
   // ส่งมากี่นาทีแล้ว นับจากตอนสร้างออเดอร์ถึงตอนนี้ (this.now() ทำให้ค่านี้ขยับเองทุก 30 วิ)
@@ -91,28 +98,18 @@ export class KitchenComponent implements OnInit, OnDestroy {
     return Math.max(0, Math.floor(diffMs / 60000));
   }
 
-  // จัดกลุ่มรายการในออเดอร์เดียวกันตามสถานีที่ทำ (ครัว/บาร์/อื่นๆ) เพื่อให้เห็นชัดว่าใครทำอะไรบ้าง
-  // เผื่ออนาคตอยากแยกส่งไปแต่ละจอ/สถานีจริงๆ ก็ต่อยอดจาก grouping นี้ได้เลย
-  itemsByStation(order: Order): StationGroup[] {
-    const groups = new Map<string, OrderItem[]>();
-    for (const item of order.items) {
-      const station = item.menu_item?.category?.station?.trim() || UNASSIGNED_STATION;
-      if (!groups.has(station)) {
-        groups.set(station, []);
-      }
-      groups.get(station)!.push(item);
-    }
-    return Array.from(groups.entries()).map(([station, items]) => ({ station, items }));
-  }
-
   refresh(): void {
     this.loading.set(true);
     this.orderService.listOrders('open,preparing,served').subscribe({
       next: (orders) => {
         this.orders.set(orders);
         this.loading.set(false);
+        this.loadError.set(false);
       },
-      error: () => this.loading.set(false)
+      error: () => {
+        this.loading.set(false);
+        this.loadError.set(true);
+      }
     });
   }
 
@@ -124,12 +121,18 @@ export class KitchenComponent implements OnInit, OnDestroy {
     return this.updatingItemIds().has(itemId);
   }
 
-  pendingCount(order: Order): number {
-    return order.items.filter((it) => it.status !== 'served').length;
-  }
-
   itemOptionsLabel(item: OrderItem): string {
     return (item.options ?? []).map((o) => o.choice_name).join(', ');
+  }
+
+  // ตัวเลือกย่อยของเมนู ต่อกันแบบ "+ เผ็ดมาก · + ไข่ดาว" ตามดีไซน์ 4b
+  optionsSummary(item: OrderItem): string {
+    return (item.options ?? []).map((o) => `+ ${o.choice_name}`).join(' · ');
+  }
+
+  tableLabel(order: Order): string {
+    if (order.table) return `โต๊ะ ${order.table.name}`;
+    return order.order_type === 'dine_in' ? 'โต๊ะ -' : 'ซื้อกลับ';
   }
 
   // เริ่มทำเมนูนี้ (รอ -> กำลังทำ) — สถานะบิลโดยรวมจะขยับตามอัตโนมัติที่ backend

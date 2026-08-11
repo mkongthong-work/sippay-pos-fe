@@ -1,0 +1,199 @@
+<div>
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-bold text-gray-900">จองโต๊ะ / กันโต๊ะ</h1>
+    <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white" (click)="openAddModal()">
+      + กันโต๊ะ / จองโต๊ะ
+    </button>
+  </div>
+
+
+  <p class="text-xs text-gray-400 mb-3">
+    ลูกค้ามาถึงร้านแล้วรอโต๊ะสักครู่ ให้กันไว้ตอนนี้เลย ถ้าลูกค้าโทร/แจ้งจองล่วงหน้า ให้เลือก "จองล่วงหน้า" แล้วระบุวันเวลา —
+    พอพนักงานเปิดบิลที่โต๊ะนี้จริงที่หน้าขาย ระบบจะปิดรายการจองนี้ให้อัตโนมัติ
+  </p>
+
+  <table class="w-full text-sm border-collapse">
+    <thead>
+      <tr class="text-left text-gray-500 border-b border-gray-200">
+        <th class="py-2">โต๊ะ</th>
+        <th class="py-2">ลูกค้า</th>
+        <th class="py-2">เบอร์โทร</th>
+        <th class="py-2">จำนวนคน</th>
+        <th class="py-2">เวลา</th>
+        <th class="py-2">หมายเหตุ</th>
+        <th class="py-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of reservations(); track r.id) {
+        <tr class="border-b border-gray-100">
+          <td class="py-2">{{ r.table?.name || '-' }}</td>
+          <td class="py-2">{{ r.customer_name }}</td>
+          <td class="py-2">{{ r.customer_phone || '-' }}</td>
+          <td class="py-2">{{ r.party_size || '-' }}</td>
+          <td class="py-2">
+            <span
+              class="text-xs rounded-full px-2 py-0.5"
+              [class.bg-amber-100]="!r.reserved_for"
+              [class.text-amber-700]="!r.reserved_for"
+              [class.bg-blue-100]="!!r.reserved_for"
+              [class.text-blue-700]="!!r.reserved_for"
+            >
+              {{ reservedForLabel(r) }}
+            </span>
+          </td>
+          <td class="py-2 text-gray-500">{{ r.note || '-' }}</td>
+          <td class="py-2">
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="text-xs border border-gray-300 rounded-full px-3 py-1 bg-white"
+                (click)="cancelReservation(r)"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                class="text-xs border border-amber-400 text-amber-600 rounded-full px-3 py-1 bg-white"
+                (click)="markNoShow(r)"
+              >
+                ลูกค้าไม่มา
+              </button>
+            </div>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="7" class="py-4 text-center text-gray-400">ยังไม่มีการจอง/กันโต๊ะ</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  @if (addModalOpen()) {
+    <div class="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4" (click)="closeAddModal()">
+      <div class="bg-white rounded-xl p-6 w-[420px] max-w-full max-h-[85vh] overflow-y-auto" (click)="$event.stopPropagation()">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">กันโต๊ะ / จองโต๊ะ</h3>
+          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeAddModal()">
+            ×
+          </button>
+        </div>
+
+        <div class="flex flex-col gap-3 mb-5">
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="flex-1 text-sm rounded-lg px-3 py-2 border"
+              [class.bg-accent]="!isAdvanceBooking"
+              [class.text-white]="!isAdvanceBooking"
+              [class.border-accent]="!isAdvanceBooking"
+              [class.border-gray-300]="isAdvanceBooking"
+              [class.bg-white]="isAdvanceBooking"
+              (click)="isAdvanceBooking = false"
+            >
+              ลูกค้ามาถึงแล้ว (กันตอนนี้)
+            </button>
+            <button
+              type="button"
+              class="flex-1 text-sm rounded-lg px-3 py-2 border"
+              [class.bg-accent]="isAdvanceBooking"
+              [class.text-white]="isAdvanceBooking"
+              [class.border-accent]="isAdvanceBooking"
+              [class.border-gray-300]="!isAdvanceBooking"
+              [class.bg-white]="!isAdvanceBooking"
+              (click)="isAdvanceBooking = true"
+            >
+              จองล่วงหน้า
+            </button>
+          </div>
+
+          @if (isAdvanceBooking) {
+            <label class="flex flex-col gap-1 text-sm text-gray-600">
+              วันเวลาที่จอง
+              <input
+                type="datetime-local"
+                class="border border-gray-300 rounded-lg px-3 py-2"
+                [(ngModel)]="newReservedFor"
+              />
+            </label>
+          }
+
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            โต๊ะ
+            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newTableId">
+              @for (group of tablesByZone(); track group.zone) {
+                <optgroup [label]="group.zone">
+                  @for (t of group.tables; track t.id) {
+                    <option [ngValue]="t.id">{{ t.name }}@if (t.capacity) { ({{ t.capacity }} ที่นั่ง) }</option>
+                  }
+                </optgroup>
+              }
+            </select>
+            @if (availableTables().length === 0) {
+              <span class="text-xs text-amber-600">ไม่มีโต๊ะว่างให้กัน/จองในตอนนี้</span>
+            }
+          </label>
+
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            ชื่อลูกค้า
+            <input
+              type="text"
+              placeholder="เช่น คุณสมชาย"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="newCustomerName"
+            />
+          </label>
+
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            เบอร์โทร (ถ้ามี)
+            <input
+              type="text"
+              placeholder="เช่น 08x-xxx-xxxx"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="newCustomerPhone"
+            />
+          </label>
+
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            จำนวนคน (ถ้ามี)
+            <input
+              type="number"
+              min="1"
+              placeholder="เช่น 4"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="newPartySize"
+            />
+          </label>
+
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            หมายเหตุ (ถ้ามี)
+            <input
+              type="text"
+              placeholder="เช่น ขอโต๊ะริมหน้าต่าง"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="newNote"
+            />
+          </label>
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
+            (click)="closeAddModal()"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
+            (click)="addReservation()"
+          >
+            บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

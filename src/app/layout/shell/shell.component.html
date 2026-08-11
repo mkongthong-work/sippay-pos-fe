@@ -1,19 +1,178 @@
 <div class="shell">
-  <nav class="topnav">
-    <span class="brand">POS ร้าน</span>
-    <a routerLink="/pos" routerLinkActive="active">หน้าขาย</a>
-    <a routerLink="/orders" routerLinkActive="active">ออเดอร์</a>
-    <a routerLink="/kitchen" routerLinkActive="active">จอครัว</a>
-    <a routerLink="/menu" routerLinkActive="active">จัดการเมนู</a>
-    <a routerLink="/tables" routerLinkActive="active">จัดการโต๊ะ</a>
-    <a routerLink="/reports" routerLinkActive="active">รายงาน</a>
-    <span class="spacer"></span>
-    @if (auth.user(); as u) {
-      <span class="user">{{ u.name }} ({{ u.role }})</span>
-    }
-    <button class="logout-btn" (click)="logout()">ออกจากระบบ</button>
+  <!-- ==================== แถบไอคอนซ้ายถาวร 72px (สเปก 5b) ==================== -->
+  <nav class="icon-rail">
+    <div class="rail-mark">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M6.5 5.5h11l-1.2 11.2a2.4 2.4 0 0 1-2.4 2.2h-3.8a2.4 2.4 0 0 1-2.4-2.2L6.5 5.5Z"
+          stroke="#fff"
+          stroke-width="1.8"
+          stroke-linejoin="round"
+        />
+        <path d="M7 10.2h10" stroke="#7FD6CE" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+    </div>
+
+    <a routerLink="/pos" routerLinkActive="active" class="rail-item">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 5h2l2.2 9.4a1.6 1.6 0 0 0 1.6 1.2h7.4a1.6 1.6 0 0 0 1.6-1.2L19.5 8H6" />
+        <circle cx="9.5" cy="19" r="1.2" />
+        <circle cx="16.5" cy="19" r="1.2" />
+      </svg>
+      <span>ขาย</span>
+    </a>
+
+    <a routerLink="/orders" routerLinkActive="active" class="rail-item">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="3.5" width="14" height="17" rx="2" />
+        <path d="M8.5 8h7M8.5 12h7M8.5 16h4" />
+      </svg>
+      <span>ออเดอร์</span>
+      @if (openOrderCount() > 0) {
+        <span class="rail-badge">{{ openOrderCount() }}</span>
+      }
+    </a>
+
+    <a routerLink="/kitchen" routerLinkActive="active" class="rail-item">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 10a7 7 0 0 1 14 0" />
+        <path d="M3.5 10h17" />
+        <path d="M6 13.5h12l-.8 4.2a1.6 1.6 0 0 1-1.6 1.3H8.4a1.6 1.6 0 0 1-1.6-1.3L6 13.5Z" />
+      </svg>
+      <span>ครัว</span>
+    </a>
+
+    <div class="rail-divider"></div>
+
+    <button type="button" class="rail-item rail-more" (click)="toggleOverlay()" [class.active]="overlayOpen()">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <path d="M4 6.5h16M4 12h16M4 17.5h16" />
+      </svg>
+      <span>เพิ่มเติม</span>
+    </button>
+
+    <div class="rail-spacer"></div>
+
+    <button type="button" class="rail-avatar" (click)="toggleOverlay()" title="เมนู/ผู้ใช้งาน">
+      {{ initials() }}
+    </button>
   </nav>
-  <main class="content">
-    <router-outlet></router-outlet>
+
+  <!-- ==================== overlay เมนูเพิ่มเติม (สเปก 5a) ==================== -->
+  @if (overlayOpen()) {
+    <div class="overlay-backdrop" (click)="closeOverlay()"></div>
+    <aside class="overlay-panel">
+      <div class="overlay-header">
+        <button type="button" class="overlay-close" (click)="closeOverlay()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+        <span class="overlay-brand">
+          <span class="overlay-brand-mark">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6.5 5.5h11l-1.2 11.2a2.4 2.4 0 0 1-2.4 2.2h-3.8a2.4 2.4 0 0 1-2.4-2.2L6.5 5.5Z"
+                stroke="#fff"
+                stroke-width="1.9"
+                stroke-linejoin="round"
+              />
+              <path d="M7 10.2h10" stroke="#2E8B84" stroke-width="1.9" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="overlay-word">Sip<span class="overlay-word-light">pay</span></span>
+        </span>
+      </div>
+
+      <div class="overlay-body">
+        <div class="overlay-group-title">หน้าร้าน</div>
+        <a routerLink="/reservations" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3.5" y="6.5" width="17" height="6" rx="2" />
+            <path d="M6.5 12.5v5M17.5 12.5v5" />
+          </svg>
+          จองโต๊ะ
+        </a>
+        <a routerLink="/loyalty" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8.5" r="3.5" />
+            <path d="M5 19.5a7 7 0 0 1 14 0" />
+          </svg>
+          สมาชิก
+        </a>
+
+        <div class="overlay-group-title">ยอดขาย</div>
+        <a routerLink="/reports" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19V9M10 19V5M16 19v-6M20 19H4" />
+          </svg>
+          รายงานยอดขาย
+        </a>
+        <a routerLink="/orders" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="3.5" width="14" height="17" rx="2" />
+            <path d="M8.5 8h7M8.5 12h7M8.5 16h4" />
+          </svg>
+          ประวัติใบเสร็จ
+        </a>
+
+        @if (auth.user()?.role === 'admin') {
+          <div class="overlay-group-title">จัดการ · แอดมินเท่านั้น</div>
+          <a routerLink="/menu" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 10a7 7 0 0 1 14 0" />
+              <path d="M3.5 10h17" />
+              <path d="M6 13.5h12l-.8 4.2a1.6 1.6 0 0 1-1.6 1.3H8.4a1.6 1.6 0 0 1-1.6-1.3L6 13.5Z" />
+            </svg>
+            จัดการเมนู
+          </a>
+          <a routerLink="/tables" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="7" height="7" rx="1.8" />
+              <rect x="14" y="4" width="7" height="7" rx="1.8" />
+              <rect x="3" y="14" width="7" height="7" rx="1.8" />
+              <rect x="14" y="14" width="7" height="7" rx="1.8" />
+            </svg>
+            จัดการโต๊ะ / โซน
+          </a>
+          <a routerLink="/staff" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="8" r="3.2" />
+              <path d="M3 19.5a6 6 0 0 1 12 0" />
+              <path d="M16.5 6.2a3 3 0 0 1 0 5.6M18 19.5a5.6 5.6 0 0 0-2.2-4.4" />
+            </svg>
+            จัดการพนักงาน
+          </a>
+          <a routerLink="/shop-settings" routerLinkActive="active" class="overlay-link" (click)="closeOverlay()">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 14.5a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-2.8-1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1-2.7H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.8 1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8" />
+            </svg>
+            ตั้งค่าร้านค้า
+          </a>
+        }
+      </div>
+
+      <div class="overlay-footer">
+        <span class="overlay-avatar">{{ initials() }}</span>
+        @if (auth.user(); as u) {
+          <span class="overlay-user-info">
+            <span class="overlay-user-name">{{ u.name }}</span>
+            <span class="overlay-user-role">{{ u.role === 'admin' ? 'แอดมิน' : 'พนักงาน' }}</span>
+          </span>
+        }
+        <button type="button" class="overlay-logout" (click)="logout()">ออกจากระบบ</button>
+      </div>
+    </aside>
+  }
+
+  <main
+    class="content"
+    [class.no-outer-scroll]="isNoOuterScrollPage()"
+    [class.full-bleed]="isNoOuterScrollPage()"
+  >
+    <div class="page-container">
+      <router-outlet></router-outlet>
+    </div>
   </main>
 </div>

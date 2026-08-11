@@ -1,6 +1,21 @@
 <div class="login-page">
+  <div class="login-brand">
+    <span class="login-brand-mark">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M6.5 5.5h11l-1.2 11.2a2.4 2.4 0 0 1-2.4 2.2h-3.8a2.4 2.4 0 0 1-2.4-2.2L6.5 5.5Z"
+          stroke="#fff"
+          stroke-width="1.8"
+          stroke-linejoin="round"
+        />
+        <path d="M7 10.2h10" stroke="#7FD6CE" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+    </span>
+    <span class="login-brand-word">Sip<span class="login-brand-word-light">pay</span></span>
+  </div>
+
   <form class="login-card" (ngSubmit)="submit()">
-    <h1>เข้าสู่ระบบ POS</h1>
+    <h1>เข้าสู่ระบบ</h1>
 
     <label>
       ชื่อผู้ใช้
@@ -18,14 +33,12 @@
       />
     </label>
 
-    @if (error()) {
-      <p class="error">{{ error() }}</p>
-    }
-
     <button type="submit" [disabled]="loading()">
       {{ loading() ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
     </button>
 
-    <p class="hint">ผู้ใช้เริ่มต้น: admin / admin1234</p>
+    <a routerLink="/pin-login" class="pin-link">เข้าด้วย PIN แทน</a>
   </form>
+
+  <div class="login-footer">Sippay POS<br />เวอร์ชัน 1.0.0</div>
 </div>

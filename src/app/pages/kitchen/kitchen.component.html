@@ -1,159 +1,174 @@
-<div class="max-w-6xl mx-auto p-4">
-  <div class="flex items-center justify-between mb-4">
-    <h1 class="text-xl font-bold text-gray-900">จอครัว</h1>
-    <button
-      (click)="refresh()"
-      class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-700 hover:border-navy hover:text-navy transition"
-    >
-      รีเฟรช
-    </button>
+<div class="kitchen-page">
+  <div class="kitchen-header">
+    <div class="kitchen-title-group">
+      <h1>จอครัว</h1>
+      <span class="kitchen-subtitle">อัปเดตอัตโนมัติทุก 30 วินาที · {{ nowText() }}</span>
+    </div>
+    <div class="kitchen-header-actions">
+      @if (overdueCount() > 0) {
+        <span class="overdue-badge">รอเกิน 15 นาที {{ overdueCount() }} รายการ</span>
+      }
+      <button type="button" class="refresh-btn" (click)="refresh()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" />
+          <path d="M18 3.5v3.5h-3.5M6 20.5V17h3.5" />
+        </svg>
+        รีเฟรช
+      </button>
+    </div>
   </div>
 
   @if (loading()) {
-    <p class="text-gray-500 text-sm">กำลังโหลด...</p>
+    <p class="loading-text">กำลังโหลด...</p>
+  } @else if (loadError()) {
+    <div class="state-box state-box--error">
+      <span class="state-icon state-icon--error">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3.5 21 19H3l9-15.5Z" />
+          <path d="M12 10v4M12 16.6v.01" />
+        </svg>
+      </span>
+      <span class="state-title">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้</span>
+      <span class="state-desc">รายการที่ค้างอยู่ในเครื่องยังไม่หาย กดลองใหม่เมื่อเน็ตกลับมา</span>
+      <button type="button" class="state-btn" (click)="refresh()">ลองอีกครั้ง</button>
+    </div>
   }
 
-  <div class="flex gap-2 mb-4">
-    <button
-      type="button"
-      class="px-4 py-2 rounded-lg text-sm font-medium border transition"
-      [class.bg-navy]="activeTab() === 'active'"
-      [class.text-white]="activeTab() === 'active'"
-      [class.border-navy]="activeTab() === 'active'"
-      [class.bg-white]="activeTab() !== 'active'"
-      [class.text-gray-700]="activeTab() !== 'active'"
-      [class.border-gray-300]="activeTab() !== 'active'"
-      (click)="selectTab('active')"
-    >
-      กำลังทำ ({{ activeOrders().length }})
-    </button>
-    <button
-      type="button"
-      class="px-4 py-2 rounded-lg text-sm font-medium border transition"
-      [class.bg-navy]="activeTab() === 'done'"
-      [class.text-white]="activeTab() === 'done'"
-      [class.border-navy]="activeTab() === 'done'"
-      [class.bg-white]="activeTab() !== 'done'"
-      [class.text-gray-700]="activeTab() !== 'done'"
-      [class.border-gray-300]="activeTab() !== 'done'"
-      (click)="selectTab('done')"
-    >
-      เสร็จทั้งหมด ({{ doneOrders().length }})
-    </button>
-  </div>
-
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    @for (order of visibleOrders(); track order.id) {
-      <div class="rounded-xl border border-gray-200 bg-white shadow-sm p-4 flex flex-col gap-3">
-        <div class="flex items-center gap-2 text-sm">
-          <span class="font-bold text-gray-900">#{{ order.id }}</span>
-          <span class="text-gray-500">
-            {{ orderTypeText(order.order_type) }}
-            @if (order.table) {
-              · {{ order.table.name }}
-            }
-          </span>
-          @if (pendingCount(order) === 0) {
-            <span class="ml-auto text-xs font-medium text-green-700 bg-green-100 rounded-full px-2 py-0.5">
-              ครบแล้ว
-            </span>
-          } @else {
-            <span class="ml-auto text-xs font-medium text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
-              เหลือ {{ pendingCount(order) }} รายการ
-            </span>
-          }
-        </div>
-
-        <div class="text-xs text-gray-400 -mt-2">
-          ส่งเมื่อ {{ sentAtLabel(order) }} · {{ minutesAgo(order) }} นาทีที่แล้ว
-        </div>
-
-        <div class="flex flex-col gap-2">
-          @for (group of itemsByStation(order); track group.station) {
-            <div>
-              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                {{ group.station }}
-              </div>
-              <ul class="flex flex-col divide-y divide-gray-100">
-                @for (item of group.items; track item.id) {
-                  <li class="py-2">
-                    <div class="flex items-start gap-3">
-                      <span class="flex-1 min-w-0">
-                        <span
-                          class="block font-medium"
-                          [class.line-through]="item.status === 'served'"
-                          [class.text-gray-400]="item.status === 'served'"
-                          [class.text-gray-900]="item.status !== 'served'"
-                        >
-                          {{ item.quantity }}x {{ item.menu_item?.name }}
-                          @if (item.is_takeaway) {
-                            <span class="text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5 ml-1">
-                              กลับบ้าน
-                            </span>
-                          }
-                        </span>
-                        @if (item.options && item.options.length > 0) {
-                          <span class="block text-xs text-navy mt-0.5">{{ itemOptionsLabel(item) }}</span>
-                        }
-                        @if (item.note) {
-                          <span class="block text-xs italic text-gray-500 mt-0.5">หมายเหตุ: {{ item.note }}</span>
-                        }
-                      </span>
-
-                      <div class="flex flex-col items-end gap-1 shrink-0">
-                        @switch (item.status) {
-                          @case ('pending') {
-                            <button
-                              type="button"
-                              class="text-xs font-medium text-white bg-navy rounded-full px-3 py-1 disabled:opacity-50"
-                              [disabled]="isUpdating(item.id)"
-                              (click)="startItem(order, item)"
-                            >
-                              เริ่มทำ
-                            </button>
-                          }
-                          @case ('preparing') {
-                            <span class="text-xs font-medium text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
-                              กำลังทำ
-                            </span>
-                            <button
-                              type="button"
-                              class="text-xs font-medium text-white bg-accent rounded-full px-3 py-1 disabled:opacity-50"
-                              [disabled]="isUpdating(item.id)"
-                              (click)="finishItem(order, item)"
-                            >
-                              เสร็จ
-                            </button>
-                          }
-                          @case ('served') {
-                            <span class="text-xs font-medium text-green-700 bg-green-100 rounded-full px-2 py-0.5">
-                              เสร็จแล้ว
-                            </span>
-                            <button
-                              type="button"
-                              class="text-xs text-gray-500 underline disabled:opacity-50"
-                              [disabled]="isUpdating(item.id)"
-                              (click)="revertItem(order, item)"
-                            >
-                              ย้อนกลับ
-                            </button>
-                          }
-                        }
-                      </div>
-                    </div>
-                  </li>
-                } @empty {
-                  <li class="py-2 text-sm text-gray-400">ไม่มีรายการ</li>
-                }
-              </ul>
-            </div>
-          }
-        </div>
+  <!-- บอร์ด 3 คอลัมน์ (เข้าใหม่ / กำลังทำ / เสิร์ฟแล้ว) — การ์ด 1 ใบ = เมนู 1 รายการ ไม่ใช่ 1 บิล
+       เพราะเมนูแต่ละอันในบิลเดียวกันขยับสถานะเป็นอิสระของตัวเอง (ดูคอมเมนต์ที่ kitchen.component.ts) -->
+  <div class="kitchen-board">
+    <!-- ==================== คอลัมน์ 1: เข้าใหม่ (pending) ==================== -->
+    <section class="kitchen-col col-new">
+      <div class="col-head">
+        <span class="col-title">เข้าใหม่</span>
+        <span class="col-count">{{ pendingCards().length }}</span>
       </div>
-    } @empty {
-      <p class="text-gray-500 text-sm col-span-full">
-        {{ activeTab() === 'active' ? 'ไม่มีออเดอร์ค้างอยู่' : 'ยังไม่มีออเดอร์ที่ทำเสร็จครบ' }}
-      </p>
-    }
+      <div class="col-list">
+        @for (card of pendingCards(); track card.item.id) {
+          <div class="kitchen-card">
+            <div class="card-top">
+              <span class="card-code">{{ orderCode(card.order) }}</span>
+              <span class="card-time" [class.overdue]="minutesAgo(card.order) >= 15">
+                {{ minutesAgo(card.order) }} นาที
+              </span>
+            </div>
+            <div class="card-table">{{ tableLabel(card.order) }}</div>
+            <div class="card-item-name">
+              {{ card.item.quantity }}x {{ card.item.menu_item?.name }}
+              @if (card.item.is_takeaway) {
+                <span class="takeaway-tag">กลับบ้าน</span>
+              }
+            </div>
+            @if (card.item.options && card.item.options.length > 0) {
+              <div class="card-options">{{ optionsSummary(card.item) }}</div>
+            }
+            @if (card.item.note) {
+              <div class="card-note">หมายเหตุ: {{ card.item.note }}</div>
+            }
+            <button
+              type="button"
+              class="card-action start"
+              [disabled]="isUpdating(card.item.id)"
+              (click)="startItem(card.order, card.item)"
+            >
+              เริ่มทำ
+            </button>
+          </div>
+        } @empty {
+          <p class="empty">ไม่มีรายการ</p>
+        }
+      </div>
+    </section>
+
+    <!-- ==================== คอลัมน์ 2: กำลังทำ (preparing) ==================== -->
+    <section class="kitchen-col col-preparing">
+      <div class="col-head">
+        <span class="col-title">กำลังทำ</span>
+        <span class="col-count">{{ preparingCards().length }}</span>
+      </div>
+      <div class="col-list">
+        @for (card of preparingCards(); track card.item.id) {
+          <div class="kitchen-card">
+            <div class="card-top">
+              <span class="card-code">{{ orderCode(card.order) }}</span>
+              <span class="card-time" [class.overdue]="minutesAgo(card.order) >= 15">
+                {{ minutesAgo(card.order) }} นาที
+              </span>
+            </div>
+            <div class="card-table">{{ tableLabel(card.order) }}</div>
+            <div class="card-item-name">
+              {{ card.item.quantity }}x {{ card.item.menu_item?.name }}
+              @if (card.item.is_takeaway) {
+                <span class="takeaway-tag">กลับบ้าน</span>
+              }
+            </div>
+            @if (card.item.options && card.item.options.length > 0) {
+              <div class="card-options">{{ optionsSummary(card.item) }}</div>
+            }
+            @if (card.item.note) {
+              <div class="card-note">หมายเหตุ: {{ card.item.note }}</div>
+            }
+            <div class="card-action-row">
+              <button
+                type="button"
+                class="card-action finish"
+                [disabled]="isUpdating(card.item.id)"
+                (click)="finishItem(card.order, card.item)"
+              >
+                ทำเสร็จแล้ว
+              </button>
+              <button
+                type="button"
+                class="card-revert"
+                [disabled]="isUpdating(card.item.id)"
+                (click)="revertItem(card.order, card.item)"
+              >
+                ย้อนกลับ
+              </button>
+            </div>
+          </div>
+        } @empty {
+          <p class="empty">ไม่มีรายการ</p>
+        }
+      </div>
+    </section>
+
+    <!-- ==================== คอลัมน์ 3: เสิร์ฟแล้ว (served) ==================== -->
+    <section class="kitchen-col col-served">
+      <div class="col-head">
+        <span class="col-title">เสิร์ฟแล้ว</span>
+        <span class="col-count">{{ servedCards().length }}</span>
+      </div>
+      <div class="col-list">
+        @for (card of servedCards(); track card.item.id) {
+          <div class="kitchen-card served">
+            <div class="card-top">
+              <span class="card-code">{{ orderCode(card.order) }}</span>
+              <span class="card-time">{{ minutesAgo(card.order) }} นาที</span>
+            </div>
+            <div class="card-table">{{ tableLabel(card.order) }}</div>
+            <div class="card-item-name done">
+              {{ card.item.quantity }}x {{ card.item.menu_item?.name }}
+              @if (card.item.is_takeaway) {
+                <span class="takeaway-tag">กลับบ้าน</span>
+              }
+            </div>
+            @if (card.item.options && card.item.options.length > 0) {
+              <div class="card-options done">{{ optionsSummary(card.item) }}</div>
+            }
+            <button
+              type="button"
+              class="card-revert self-end"
+              [disabled]="isUpdating(card.item.id)"
+              (click)="revertItem(card.order, card.item)"
+            >
+              ย้อนกลับ
+            </button>
+          </div>
+        } @empty {
+          <p class="empty">ยังไม่มีรายการที่เสิร์ฟแล้ว</p>
+        }
+      </div>
+    </section>
   </div>
 </div>

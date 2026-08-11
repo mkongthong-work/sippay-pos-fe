@@ -1,0 +1,85 @@
+<div>
+  <h1 class="text-xl font-bold text-gray-900 mb-4">ตั้งค่าร้านค้า</h1>
+
+  <p class="text-xs text-gray-400 mb-4">
+    ข้อมูลนี้จะโชว์บนหัวใบเสร็จตอนพิมพ์บิลให้ลูกค้า (หน้าคิดเงิน/หน้ารายงาน)
+  </p>
+
+
+  @if (loading()) {
+    <p class="text-sm text-gray-400">กำลังโหลด...</p>
+  } @else {
+    <div class="flex flex-col gap-3 max-w-md">
+      <label class="flex flex-col gap-1 text-sm text-gray-600">
+        ชื่อร้าน
+        <input
+          type="text"
+          placeholder="เช่น SipPay Cafe"
+          class="border border-gray-300 rounded-lg px-3 py-2"
+          [(ngModel)]="name"
+        />
+      </label>
+      <label class="flex flex-col gap-1 text-sm text-gray-600">
+        ที่อยู่
+        <textarea
+          rows="2"
+          placeholder="เช่น 123 ถ.สุขุมวิท แขวง... เขต... กรุงเทพฯ 10110"
+          class="border border-gray-300 rounded-lg px-3 py-2 resize-y"
+          [(ngModel)]="address"
+        ></textarea>
+      </label>
+      <label class="flex flex-col gap-1 text-sm text-gray-600">
+        เบอร์โทร
+        <input
+          type="text"
+          placeholder="เช่น 08x-xxx-xxxx"
+          class="border border-gray-300 rounded-lg px-3 py-2"
+          [(ngModel)]="phone"
+        />
+      </label>
+      <label class="flex flex-col gap-1 text-sm text-gray-600">
+        เลขผู้เสียภาษี (ถ้ามี)
+        <input
+          type="text"
+          placeholder="เช่น 1-2345-67890-12-3"
+          class="border border-gray-300 rounded-lg px-3 py-2"
+          [(ngModel)]="taxId"
+        />
+      </label>
+
+      <hr class="border-gray-200 my-1" />
+
+      <p class="text-xs text-gray-400">
+        ตั้งค่านี้เพื่อให้หน้าคิดเงินแสดง QR พร้อมเพย์ให้ลูกค้าสแกนจ่ายเองได้ตอนเลือกวิธีชำระแบบโอนเงิน
+        (ไม่บังคับกรอก — ถ้าว่างจะไม่แสดง QR)
+      </p>
+      <label class="flex flex-col gap-1 text-sm text-gray-600">
+        เลขพร้อมเพย์
+        <input
+          type="text"
+          placeholder="เบอร์โทร 10 หลัก หรือเลขบัตรประชาชน/เลขผู้เสียภาษี 13 หลัก"
+          class="border border-gray-300 rounded-lg px-3 py-2"
+          [(ngModel)]="promptPayId"
+        />
+      </label>
+      <label class="flex flex-col gap-1 text-sm text-gray-600">
+        ชื่อผู้รับเงิน (ถ้าไม่กรอกจะใช้ชื่อร้านแทน)
+        <input
+          type="text"
+          placeholder="เช่น ร้าน SipPay Cafe"
+          class="border border-gray-300 rounded-lg px-3 py-2"
+          [(ngModel)]="promptPayName"
+        />
+      </label>
+
+      <button
+        type="button"
+        class="rounded-lg px-4 py-2.5 bg-accent text-white text-sm w-fit"
+        [disabled]="saving()"
+        (click)="save()"
+      >
+        {{ saving() ? 'กำลังบันทึก...' : 'บันทึก' }}
+      </button>
+    </div>
+  }
+</div>

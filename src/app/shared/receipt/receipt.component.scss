@@ -1,0 +1,148 @@
+.receipt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  padding: 1.5rem 1rem;
+}
+
+// โหมดฝังในหน้า (inline=true) — ไม่มี backdrop/fixed position ปล่อยให้หน้าที่เรียกใช้คุมขนาด/ตำแหน่งเอง
+.receipt-inline {
+  display: flex;
+  justify-content: center;
+
+  .receipt-print-root {
+    box-shadow: none;
+  }
+}
+
+.receipt-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  button {
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: white;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    // ปุ่ม .primary ในนี้คือ "พิมพ์ใบเสร็จ" ไม่ใช่ยืนยันชำระเงิน จึงใช้กรมท่า
+    &.primary {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: white;
+    }
+  }
+}
+
+.receipt-print-root {
+  background: white;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+// ฟอนต์เดียวกับระบบ (ดีไซน์ 4c) — 'IBM Plex Mono' ก่อน ทำให้ตัวเลข/อักษรละตินเป็น mono ชิดขวาตรงกันทุก
+// บรรทัดเหมือนพิมพ์จากเครื่องความร้อนจริง ส่วนข้อความไทย (ซึ่ง IBM Plex Mono ไม่มีตัวอักษรไทย) เบราว์เซอร์จะ
+// fallback ไปใช้ 'Bai Jamjuree' ให้เองอัตโนมัติทีละตัวอักษร ไม่ต้องประกาศฟอนต์ไทยซ้ำในทุก element
+.receipt-paper {
+  width: 80mm;
+  padding: 10px 8px;
+  box-sizing: border-box;
+  font-family: 'IBM Plex Mono', 'Bai Jamjuree', monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  color: #000;
+}
+
+.r-center {
+  text-align: center;
+}
+
+.r-bold {
+  font-weight: 700;
+}
+
+.r-lg {
+  font-size: 15px;
+}
+
+// หัวใบเสร็จ — โลโก้ย่อ (มาร์กเดี่ยว+ชื่อ Sippay 15px ไม่กินกระดาษ) แล้วตามด้วยชื่อร้าน/ที่อยู่/เบอร์โทร (ดีไซน์ 4c)
+.r-header {
+  display: flex;
+  flex-direction: column;
+}
+
+.r-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.r-brand-mark {
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid #111;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.r-brand-word {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.r-divider {
+  border-top: 1px dashed #000;
+  margin: 6px 0;
+}
+
+.r-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+
+  // "รวมสุทธิ" คร่อมด้วยเส้นทึบบน-ล่าง เป็นบรรทัดเดียวในใบที่หนักที่สุด (ดีไซน์ 4c)
+  &.r-total {
+    font-weight: 700;
+    font-size: 17px;
+    border-top: 1px solid #111;
+    border-bottom: 1px solid #111;
+    padding: 7px 0;
+    margin: 8px 0;
+  }
+}
+
+.r-item {
+  margin-bottom: 3px;
+}
+
+.r-item-name {
+  flex: 1;
+  padding-right: 6px;
+}
+
+.r-sub {
+  padding-left: 10px;
+  font-size: 11px;
+  color: #333;
+}
+
+.r-footer {
+  margin-top: 8px;
+}
+
+.r-app-caption {
+  margin-top: 3px;
+  font-size: 10.5px;
+  color: #444;
+}

@@ -1,0 +1,329 @@
+<div>
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-bold text-gray-900">จัดการพนักงาน</h1>
+    <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white" (click)="openAddModal()">
+      + เพิ่มพนักงาน
+    </button>
+  </div>
+
+
+  <table class="w-full text-sm border-collapse">
+    <thead>
+      <tr class="text-left text-gray-500 border-b border-gray-200">
+        <th class="py-2">พนักงาน</th>
+        <th class="py-2">สิทธิ์</th>
+        <th class="py-2">สถานะ</th>
+        <th class="py-2">PIN</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (u of users(); track u.id) {
+        <!-- คลิกทั้งแถวเพื่อเปิดแก้ไข (ดีไซน์ 7c) — เลิกใช้คอลัมน์ปุ่ม action ที่โชว์ตลอด -->
+        <tr
+          class="border-b border-gray-100 cursor-pointer hover:bg-[var(--color-bg)]"
+          (click)="openEditModal(u)"
+        >
+          <td class="py-2">
+            <div class="flex items-center gap-2.5">
+              <span
+                class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold uppercase shrink-0"
+                [class.bg-[var(--color-primary)]]="u.role === 'admin'"
+                [class.text-white]="u.role === 'admin'"
+                [class.bg-[var(--color-highlight-bg)]]="u.role !== 'admin'"
+                [class.text-[var(--color-primary)]]="u.role !== 'admin'"
+              >
+                {{ u.name.charAt(0) }}
+              </span>
+              <div class="min-w-0">
+                <div class="text-gray-900 font-medium truncate">
+                  {{ u.name }}
+                  @if (isSelf(u)) {
+                    <span class="text-xs text-gray-400 font-normal">(คุณ)</span>
+                  }
+                </div>
+                <div class="text-xs text-gray-400 truncate">{{ u.username }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="py-2">
+            <span
+              class="text-xs rounded-full px-2 py-0.5"
+              [class.bg-[var(--color-highlight-bg)]]="u.role === 'admin'"
+              [class.text-[var(--color-primary)]]="u.role === 'admin'"
+              [class.bg-gray-100]="u.role === 'staff'"
+              [class.text-gray-600]="u.role === 'staff'"
+            >
+              {{ u.role === 'admin' ? 'แอดมิน' : 'พนักงาน' }}
+            </span>
+          </td>
+          <td class="py-2">
+            <span
+              class="text-xs rounded-full px-2 py-0.5"
+              [class.bg-[var(--color-accent-bg)]]="u.is_active"
+              [class.text-[var(--color-accent-dark)]]="u.is_active"
+              [class.bg-[var(--color-danger-bg)]]="!u.is_active"
+              [class.text-[var(--color-danger)]]="!u.is_active"
+            >
+              {{ u.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน' }}
+            </span>
+          </td>
+          <td class="py-2">
+            <span
+              class="text-xs rounded-full px-2 py-0.5"
+              [class.bg-[var(--color-accent-bg)]]="u.has_pin"
+              [class.text-[var(--color-accent-dark)]]="u.has_pin"
+              [class.bg-[var(--color-warn-bg)]]="!u.has_pin"
+              [class.text-[var(--color-warn)]]="!u.has_pin"
+            >
+              {{ u.has_pin ? 'ตั้งแล้ว' : 'ยังไม่ตั้ง' }}
+            </span>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="4" class="py-4 text-center text-gray-400">ยังไม่มีพนักงาน</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  @if (addModalOpen()) {
+    <div
+      class="fixed inset-0 bg-[rgba(36,42,61,0.42)] flex items-center justify-center z-[100] p-4"
+      (click)="closeAddModal()"
+    >
+      <div class="bg-white rounded-xl p-6 w-[min(640px,92vw)] max-h-[88vh] overflow-y-auto" (click)="$event.stopPropagation()">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">เพิ่มพนักงาน</h3>
+          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeAddModal()">
+            ×
+          </button>
+        </div>
+        <div class="flex flex-col gap-3 mb-5">
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            ชื่อผู้ใช้ (สำหรับล็อกอิน)
+            <input
+              type="text"
+              placeholder="เช่น somchai"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="newUsername"
+            />
+          </label>
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            รหัสผ่าน
+            <input
+              type="password"
+              placeholder="อย่างน้อย 6 ตัวอักษร"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="newPassword"
+            />
+          </label>
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            ชื่อพนักงาน
+            <input
+              type="text"
+              placeholder="เช่น สมชาย ใจดี"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="newName"
+            />
+          </label>
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            สิทธิ์
+            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newRole">
+              <option value="staff">พนักงาน</option>
+              <option value="admin">แอดมิน</option>
+            </select>
+          </label>
+          <p class="text-xs text-gray-400 -mt-1">ตั้ง PIN สำหรับ "เข้าด้วย PIN" ได้ทีหลังที่หน้าแก้ไขพนักงาน</p>
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
+            (click)="closeAddModal()"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
+            (click)="addUser()"
+          >
+            เพิ่มพนักงาน
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (editModalUser(); as user) {
+    <div
+      class="fixed inset-0 bg-[rgba(36,42,61,0.42)] flex items-center justify-center z-[100] p-4"
+      (click)="closeEditModal()"
+    >
+      <div class="bg-white rounded-xl p-6 w-[min(640px,92vw)] max-h-[88vh] overflow-y-auto" (click)="$event.stopPropagation()">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">แก้ไขพนักงาน "{{ user.name }}"</h3>
+          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeEditModal()">
+            ×
+          </button>
+        </div>
+        <div class="flex flex-col gap-3 mb-5">
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            ชื่อผู้ใช้
+            <input type="text" class="border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-400" [value]="user.username" disabled />
+          </label>
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            ชื่อพนักงาน
+            <input type="text" class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editName" />
+          </label>
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            สิทธิ์
+            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editRole" [disabled]="isSelf(user)">
+              <option value="staff">พนักงาน</option>
+              <option value="admin">แอดมิน</option>
+            </select>
+            @if (isSelf(user)) {
+              <span class="text-xs text-gray-400">แก้ไขสิทธิ์ของบัญชีตัวเองไม่ได้</span>
+            }
+          </label>
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            ตั้งรหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)
+            <input
+              type="password"
+              placeholder="อย่างน้อย 6 ตัวอักษร"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="editPassword"
+            />
+          </label>
+          <div class="flex flex-col gap-1 text-sm text-gray-600">
+            PIN เข้าระบบ
+            @if (user.has_pin) {
+              <p class="text-xs text-gray-400 m-0">
+                อัพเดต PIN ล่าสุด {{ formatPinUpdatedAt(user.pin_updated_at) }}
+              </p>
+            } @else {
+              <p class="text-xs text-gray-400 m-0">ยังไม่ได้ตั้ง PIN</p>
+            }
+            <div class="flex gap-2 mt-1">
+              <button
+                type="button"
+                class="text-xs border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+                (click)="openPinModal(user)"
+              >
+                {{ user.has_pin ? 'เปลี่ยน PIN' : 'ตั้ง PIN' }}
+              </button>
+              @if (user.has_pin) {
+                <button
+                  type="button"
+                  class="text-xs text-red-600 border border-red-200 rounded-lg px-3 py-1.5 bg-white"
+                  (click)="clearPin(user)"
+                >
+                  ลบ PIN
+                </button>
+              }
+            </div>
+          </div>
+
+          @if (!isSelf(user)) {
+            <div class="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 mt-1">
+              <div class="text-sm text-gray-600">
+                สถานะบัญชี
+                <span class="block text-xs text-gray-400">{{ user.is_active ? 'พนักงานคนนี้เข้าใช้งานได้' : 'ปิดใช้งานอยู่ เข้าระบบไม่ได้' }}</span>
+              </div>
+              <button
+                type="button"
+                class="text-xs border rounded-full px-3 py-1.5"
+                [class.border-gray-300]="user.is_active"
+                [class.bg-white]="user.is_active"
+                [class.border-[var(--color-warn)]]="!user.is_active"
+                [class.text-[var(--color-warn)]]="!user.is_active"
+                (click)="toggleActive(user)"
+              >
+                {{ user.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }}
+              </button>
+            </div>
+          }
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
+            (click)="closeEditModal()"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
+            (click)="saveEditUser()"
+          >
+            บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== popup: รีเซ็ต PIN (แป้นกดตัวเลข) ==================== -->
+  @if (pinModalUser(); as pu) {
+    <div
+      class="fixed inset-0 bg-[rgba(36,42,61,0.42)] flex items-center justify-center z-[110] p-4"
+      (click)="closePinModal()"
+    >
+      <div class="bg-white rounded-xl p-6 w-[min(480px,92vw)] max-w-full" (click)="$event.stopPropagation()">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="text-lg font-bold">{{ pu.has_pin ? 'รีเซ็ต PIN' : 'ตั้ง PIN' }}</h3>
+          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closePinModal()">
+            ×
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mb-4">
+          กดตัวเลขบนแป้นเพื่อกำหนด PIN {{ pinMinLength }}-{{ pinMaxLength }} หลัก สำหรับ "{{ pu.name }}" —
+          ระบบจะเก็บเฉพาะ pinHash เท่านั้น
+        </p>
+
+        <div class="border border-gray-200 rounded-lg py-3 mb-4 text-center text-lg tracking-[0.4em] text-gray-700">
+          @if (pinModalValue()) {
+            {{ '•'.repeat(pinModalValue().length) }}
+          } @else {
+            <span class="text-gray-300 tracking-normal text-sm">กรอก PIN</span>
+          }
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-5">
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('1')">1</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('2')">2</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('3')">3</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('4')">4</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('5')">5</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('6')">6</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('7')">7</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('8')">8</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('9')">9</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-sm text-gray-500" (click)="pinClear()">ล้าง</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-lg font-semibold" (click)="pinPressDigit('0')">0</button>
+          <button type="button" class="py-3 rounded-lg border border-gray-300 bg-white text-sm text-gray-500" (click)="pinBackspace()">ลบ</button>
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
+            (click)="closePinModal()"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm disabled:opacity-40"
+            [disabled]="!pinCanSave()"
+            (click)="savePinModal()"
+          >
+            {{ savingPin() ? 'กำลังบันทึก...' : 'บันทึก PIN' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

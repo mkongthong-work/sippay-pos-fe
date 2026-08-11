@@ -1,24 +1,18 @@
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Observable, forkJoin } from 'rxjs';
 
 import { MenuService } from '../../core/menu.service';
-import { Category, CategoryOptionTemplate, MenuItem, MenuOptionGroup } from '../../core/models';
-
-interface DraftChoice {
-  name: string;
-  price_delta: number | null;
-}
-
-interface ChoiceDraft {
-  name: string;
-  price_delta: number | null;
-}
-
-interface SaveStatus {
-  type: 'success' | 'error';
-  text: string;
-}
+import { SERVER_BASE_URL, resolveMediaUrl } from '../../core/api-config';
+import { ToastService } from '../../core/toast.service';
+import {
+  Category,
+  CategoryOptionTemplate,
+  MenuItem,
+  MenuOptionGroup,
+  OptionSelectionType
+} from '../../core/models';
 
 interface ConfirmState {
   message: string;
@@ -26,18 +20,50 @@ interface ConfirmState {
   onConfirm: () => void;
 }
 
-// กลุ่มตัวเลือก (เช่น ความหวาน, ไซส์) ที่ร่างไว้ตอนสร้างเมนูใหม่ ยังไม่มี id จริงจนกว่าจะบันทึกเมนูสำเร็จก่อน
-interface DraftOptionGroup {
+interface DraftChoiceRow {
   name: string;
-  is_required: boolean;
-  choices: DraftChoice[];
+  price_delta: number | null;
+  is_default: boolean;
 }
 
-// สถานที่ทำเริ่มต้นให้เลือกไว้ก่อน แอดมินพิมพ์เพิ่มเองได้จาก popup เพิ่มหมวดหมู่
-const DEFAULT_STATIONS = ['ครัว', 'ครัวร้อน', 'บาร์', 'อื่นๆ'];
+// แถวตัวเลือกย่อยในฟอร์มกลุ่มตัวเลือก (ต่างจาก DraftChoiceRow เฉยๆ ตรงที่ต้องรู้ว่าแถวนี้คือตัวเลือกที่มีอยู่แล้ว
+// (มี id) หรือเป็นแถวใหม่ที่ยังไม่ได้บันทึก — ใช้ตอน diff ว่าต้อง add/update/delete ตัวเลือกไหนบ้างตอนกดบันทึก
+interface GroupChoiceRow extends DraftChoiceRow {
+  id?: number;
+  is_enabled: boolean;
+}
 
-// ใช้เป็นค่าพิเศษใน <select> สถานที่ทำ เพื่อสลับไปโชว์ช่องพิมพ์ชื่อสถานที่ใหม่เอง
-const CUSTOM_STATION_VALUE = '__custom__';
+// เทมเพลตด่วน (client-side ล้วนๆ) — แค่ช่วย autofill ชื่อกลุ่ม+ตัวเลือกย่อยตอนสร้างกลุ่มตัวเลือกใหม่
+// ไม่ใช่ของที่บันทึกไว้ที่ backend (นั่นคือ "ค่าเริ่มต้นตัวเลือกระดับหมวดหมู่" ที่แท็บตัวเลือกเสริมจัดการแยกอยู่แล้ว)
+interface QuickOptionTemplate {
+  key: string;
+  label: string;
+  choices: string[];
+}
+
+const QUICK_OPTION_TEMPLATES: QuickOptionTemplate[] = [
+  { key: 'sweetness', label: 'ระดับความหวาน', choices: ['หวาน 0%', 'หวาน 25%', 'หวาน 50%', 'หวาน 100%'] },
+  { key: 'temperature', label: 'อุณหภูมิ', choices: ['ร้อน', 'เย็น', 'ปั่น'] },
+  { key: 'topping', label: 'ท็อปปิ้ง', choices: ['ไข่มุก', 'วุ้นมะพร้าว', 'เฉาก๊วย'] },
+  { key: 'cooking_note', label: 'หมายเหตุการปรุง', choices: ['ไม่เผ็ด', 'เผ็ดน้อย', 'เผ็ดปกติ', 'เผ็ดมาก'] },
+  { key: 'size', label: 'ขนาด S/M/L', choices: ['S', 'M', 'L'] },
+  { key: 'milk_alt', label: 'นมทางเลือก', choices: ['นมสด', 'นมโอ๊ต', 'นมอัลมอนด์', 'ไม่ใส่นม'] }
+];
+
+// สีให้เลือกไวๆ ตอนสร้าง/แก้ไขหมวดหมู่ (แอดมินพิมพ์ hex เองก็ได้ ปุ่มพวกนี้แค่ช่วยความเร็ว)
+const CATEGORY_COLOR_SWATCHES = [
+  '#4f46e5', '#0ea5e9', '#16a34a', '#f59e0b', '#ef4444', '#ec4899', '#6b7280'
+];
+
+type AdminTab = 'items' | 'categories' | 'options' | 'archived';
+
+// มุมมองแบบเต็มหน้า (แทนที่เนื้อหาแท็บทั้งหมด) — ใช้กับฟอร์มเพิ่ม/แก้ไขหมวดหมู่, เมนู, กลุ่มตัวเลือก
+type PageView =
+  | { kind: 'none' }
+  | { kind: 'category-form'; editingId: number | null }
+  | { kind: 'item-form'; editingId: number | null }
+  | { kind: 'option-group-form'; menuItemId: number; editingGroupId: number | null }
+  | { kind: 'template-form'; editingId: number | null };
 
 @Component({
   selector: 'app-menu-admin',
@@ -47,109 +73,53 @@ const CUSTOM_STATION_VALUE = '__custom__';
   styleUrl: './menu-admin.component.scss'
 })
 export class MenuAdminComponent implements OnInit {
-  categories = signal<Category[]>([]);
-  menuItems = signal<MenuItem[]>([]);
-  message = signal<string | null>(null);
+  private allCategoriesRaw = signal<Category[]>([]);
+  private allMenuItemsRaw = signal<MenuItem[]>([]);
 
-  // ---- popup ยืนยัน (ใช้ร่วมกันทั้งลบหมวดหมู่ / ลบเมนู / บันทึกแก้ไขเมนู) ----
-  confirmDialog = signal<ConfirmState | null>(null);
+  categories = computed(() => this.allCategoriesRaw().filter((c) => !c.is_archived));
+  archivedCategories = computed(() => this.allCategoriesRaw().filter((c) => c.is_archived));
+  menuItems = computed(() => this.allMenuItemsRaw().filter((i) => !i.is_archived));
+  archivedMenuItems = computed(() => this.allMenuItemsRaw().filter((i) => i.is_archived));
 
-  // ---- popup เพิ่มหมวดหมู่ ----
-  addCategoryModalOpen = signal(false);
-  newCategoryName = '';
-  newCategoryStation = DEFAULT_STATIONS[0];
-  newCategoryStationCustom = '';
-  readonly customStationValue = CUSTOM_STATION_VALUE;
+  serverBaseUrl = SERVER_BASE_URL;
+  mediaUrl = resolveMediaUrl;
+  categoryColorSwatches = CATEGORY_COLOR_SWATCHES;
+  quickOptionTemplates = QUICK_OPTION_TEMPLATES;
 
-  // รวมสถานที่ default กับสถานที่ที่แอดมินเคยพิมพ์เพิ่มเองในหมวดหมู่ที่มีอยู่แล้ว
-  stationOptions = computed(() => {
-    const set = new Set<string>(DEFAULT_STATIONS);
-    for (const cat of this.categories()) {
-      if (cat.station) set.add(cat.station);
-    }
-    return Array.from(set);
+  // ---- แท็บบนสุดของหน้า ----
+  activeTab = signal<AdminTab>('items');
+  view = signal<PageView>({ kind: 'none' });
+
+  // ตัวกรองหมวดหมู่ที่แท็บ "เมนูสินค้า" — null = ทุกหมวดหมู่
+  itemsFilterCategoryId = signal<number | null>(null);
+
+  // ช่องค้นหาเมนู (ดีไซน์ 7c) — ค้นจากชื่อเมนู
+  itemsSearchQuery = signal('');
+
+  filteredMenuItemsForAdmin = computed(() => {
+    const catId = this.itemsFilterCategoryId();
+    const query = this.itemsSearchQuery().trim().toLowerCase();
+    let items = this.menuItems();
+    if (catId) items = items.filter((m) => m.category_id === catId);
+    if (query) items = items.filter((m) => m.name.toLowerCase().includes(query));
+    return items;
   });
 
-  // ---- แก้ไขสถานที่ทำของหมวดหมู่ที่มีอยู่แล้ว (ตั้งใน popup เพิ่มหมวดหมู่ได้แค่ตอนสร้างใหม่ พอมีของเก่า
-  // อยู่ก่อนหน้าฟีเจอร์นี้ หรืออยากเปลี่ยนทีหลัง ต้องแก้ตรงนี้ได้ด้วย) ----
-  editingStationCategoryId = signal<number | null>(null);
-  editStationValue = '';
-  editStationCustomValue = '';
-
-  // ---- popup เพิ่มเมนู ----
-  addItemModalOpen = signal(false);
-  newItemName = '';
-  newItemPrice: number | null = null;
-  newItemCategoryId: number | null = null;
-  // ตัวเลือกเมนู (ถ้ามี) ที่ตั้งไว้พร้อมกันตอนสร้างเมนูใหม่เลย ไม่ต้องเปิด popup ตัวเลือกแยกทีหลัง
-  newItemOptionGroups: DraftOptionGroup[] = [];
-
-  // ---- popup แก้ไขเมนู ----
-  editItemModalItem = signal<MenuItem | null>(null);
-  editItemName = '';
-  editItemPrice: number | null = null;
-  editItemCategoryId: number | null = null;
-
-  // ---- ค่าเริ่มต้นตัวเลือกระดับหมวดหมู่ (ตั้งครั้งเดียว ใช้ซ้ำได้หลายเมนู) ----
-  templateManagerCategoryId = signal<number | null>(null);
-  categoryTemplates = signal<CategoryOptionTemplate[]>([]);
-  templateStatus = signal<SaveStatus | null>(null);
-
-  newTemplateName = '';
-  newTemplateRequired = true;
-  draftTemplateChoices: DraftChoice[] = [{ name: '', price_delta: 0 }];
-
-  // ---- popup แก้ไขตัวเลือกของเมนูแต่ละอย่าง ----
-  optionModalItem = signal<MenuItem | null>(null);
-  optionModalTemplates = signal<CategoryOptionTemplate[]>([]);
-  optionSaveStatus = signal<SaveStatus | null>(null);
-
-  newGroupName = '';
-  newGroupRequired = true;
-  draftChoices: DraftChoice[] = [{ name: '', price_delta: 0 }];
-
-  private choiceDrafts: Record<number, ChoiceDraft> = {};
-
-  constructor(private menuService: MenuService) {}
-
-  ngOnInit(): void {
-    this.reload();
+  switchTab(tab: AdminTab): void {
+    this.activeTab.set(tab);
+    this.view.set({ kind: 'none' });
+    if (tab === 'options') {
+      this.loadAllTemplates();
+    }
   }
 
-  reload(): void {
-    this.menuService.getCategories().subscribe({
-      next: (cats) => {
-        this.categories.set(cats);
-        if (!this.newItemCategoryId && cats.length > 0) {
-          this.newItemCategoryId = cats[0].id;
-        }
-      },
-      error: (err) => this.message.set(err?.error?.error ?? 'โหลดหมวดหมู่ไม่สำเร็จ')
-    });
-
-    this.menuService.getMenuItems().subscribe({
-      next: (items) => {
-        this.menuItems.set(items);
-        // ถ้า popup ตัวเลือกเปิดอยู่ ให้อัปเดตข้อมูลเมนูตัวนั้นให้เป็นชุดล่าสุดด้วย
-        const openItem = this.optionModalItem();
-        if (openItem) {
-          this.optionModalItem.set(items.find((i) => i.id === openItem.id) ?? null);
-        }
-      },
-      error: (err) => this.message.set(err?.error?.error ?? 'โหลดเมนูไม่สำเร็จ')
-    });
+  // ปุ่มที่ยกมาจากดีไซน์ต้นแบบแต่ระบบนี้ยังไม่รองรับจริง (เช่น นำเข้า Excel)
+  showNotImplemented(feature: string): void {
+    this.toastService.info(`ฟีเจอร์"${feature}"ยังไม่เปิดใช้งานในระบบนี้`);
   }
 
-  categoryName(id: number): string {
-    return this.categories().find((c) => c.id === id)?.name ?? '-';
-  }
-
-  // มีเมนูอยู่ในหมวดนี้หรือไม่ — ใช้กันไม่ให้ลบหมวดหมู่ทิ้งทั้งที่ยังมีเมนูผูกอยู่
-  categoryHasItems(categoryId: number): boolean {
-    return this.menuItems().some((item) => item.category_id === categoryId);
-  }
-
-  // ---- popup ยืนยัน ใช้ร่วมกันหลายจุด ----
+  // ---- popup ยืนยัน (ใช้ร่วมกันทั้งลบหมวดหมู่ / ลบเมนู / เก็บถาวร / กู้คืน) ----
+  confirmDialog = signal<ConfirmState | null>(null);
 
   askConfirm(message: string, onConfirm: () => void, confirmLabel = 'ยืนยัน'): void {
     this.confirmDialog.set({ message, confirmLabel, onConfirm });
@@ -166,485 +136,772 @@ export class MenuAdminComponent implements OnInit {
     this.confirmDialog.set(null);
   }
 
-  // ---- popup เพิ่มหมวดหมู่ ----
+  constructor(
+    private menuService: MenuService,
+    private toastService: ToastService
+  ) {}
 
-  openAddCategoryModal(): void {
-    this.newCategoryName = '';
-    this.newCategoryStation = this.stationOptions()[0] ?? DEFAULT_STATIONS[0];
-    this.newCategoryStationCustom = '';
-    this.message.set(null);
-    this.addCategoryModalOpen.set(true);
+  ngOnInit(): void {
+    this.reload();
   }
 
-  closeAddCategoryModal(): void {
-    this.addCategoryModalOpen.set(false);
+  reload(): void {
+    this.menuService.getCategories(true).subscribe({
+      next: (cats) => {
+        this.allCategoriesRaw.set(cats);
+        if (!this.itemFormCategoryId && this.categories().length > 0) {
+          this.itemFormCategoryId = this.categories()[0].id;
+        }
+      },
+      error: (err) => this.toastService.error(err?.error?.error ?? 'โหลดหมวดหมู่ไม่สำเร็จ')
+    });
+
+    this.menuService.getMenuItems(undefined, true).subscribe({
+      next: (items) => this.allMenuItemsRaw.set(items),
+      error: (err) => this.toastService.error(err?.error?.error ?? 'โหลดเมนูไม่สำเร็จ')
+    });
   }
 
-  addCategory(): void {
-    if (!this.newCategoryName.trim()) {
-      this.message.set('กรอกชื่อหมวดหมู่');
+  categoryName(id: number): string {
+    return this.allCategoriesRaw().find((c) => c.id === id)?.name ?? '-';
+  }
+
+  categoryById(id: number): Category | undefined {
+    return this.allCategoriesRaw().find((c) => c.id === id);
+  }
+
+  // มีเมนูอยู่ในหมวดนี้หรือไม่ — ใช้กันไม่ให้ลบ/เก็บหมวดหมู่ทิ้งทั้งที่ยังมีเมนูผูกอยู่
+  categoryHasItems(categoryId: number): boolean {
+    return this.menuItems().some((item) => item.category_id === categoryId);
+  }
+
+  itemCountLabel(categoryId: number): string {
+    const count = this.menuItems().filter((item) => item.category_id === categoryId).length;
+    return `${count} เมนู`;
+  }
+
+  // =========================================================================
+  // ---- หมวดหมู่: full-page form (เพิ่ม/แก้ไข) ----
+  // =========================================================================
+
+  categoryFormName = '';
+  categoryFormDescription = '';
+  categoryFormColor = CATEGORY_COLOR_SWATCHES[0];
+  categoryFormSortOrder = 0;
+  categoryFormEnabled = true;
+
+  openAddCategoryForm(): void {
+    this.categoryFormName = '';
+    this.categoryFormDescription = '';
+    this.categoryFormColor = CATEGORY_COLOR_SWATCHES[0];
+    this.categoryFormSortOrder = this.categories().length + 1;
+    this.categoryFormEnabled = true;
+    this.view.set({ kind: 'category-form', editingId: null });
+  }
+
+  openEditCategoryForm(cat: Category): void {
+    this.categoryFormName = cat.name;
+    this.categoryFormDescription = cat.description ?? '';
+    this.categoryFormColor = cat.color || CATEGORY_COLOR_SWATCHES[0];
+    this.categoryFormSortOrder = cat.sort_order;
+    this.categoryFormEnabled = cat.is_enabled;
+    this.view.set({ kind: 'category-form', editingId: cat.id });
+  }
+
+  closeCategoryForm(): void {
+    this.view.set({ kind: 'none' });
+  }
+
+  saveCategoryForm(): void {
+    if (!this.categoryFormName.trim()) {
+      this.toastService.error('กรอกชื่อหมวดหมู่');
       return;
     }
-    const station =
-      this.newCategoryStation === CUSTOM_STATION_VALUE
-        ? this.newCategoryStationCustom.trim()
-        : this.newCategoryStation;
+    const view = this.view();
+    const payload: Partial<Category> = {
+      name: this.categoryFormName.trim(),
+      description: this.categoryFormDescription.trim(),
+      color: this.categoryFormColor,
+      sort_order: this.categoryFormSortOrder,
+      is_enabled: this.categoryFormEnabled
+    };
 
-    this.menuService
-      .createCategory({
-        name: this.newCategoryName,
-        sort_order: this.categories().length + 1,
-        station
-      })
-      .subscribe({
+    if (view.kind === 'category-form' && view.editingId !== null) {
+      this.menuService.updateCategory(view.editingId, payload).subscribe({
         next: () => {
-          this.message.set(null);
-          this.closeAddCategoryModal();
+          this.closeCategoryForm();
           this.reload();
         },
-        error: (err) => this.message.set(err?.error?.error ?? 'เพิ่มหมวดหมู่ไม่สำเร็จ')
+        error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขหมวดหมู่ไม่สำเร็จ')
       });
-  }
-
-  // ---- แก้ไขสถานที่ทำของหมวดหมู่ที่มีอยู่แล้ว ----
-
-  openStationEditor(cat: Category): void {
-    this.editingStationCategoryId.set(cat.id);
-    this.editStationValue = cat.station || this.stationOptions()[0] || DEFAULT_STATIONS[0];
-    this.editStationCustomValue = '';
-    this.message.set(null);
-  }
-
-  closeStationEditor(): void {
-    this.editingStationCategoryId.set(null);
-  }
-
-  saveStationEdit(cat: Category): void {
-    const station =
-      this.editStationValue === CUSTOM_STATION_VALUE
-        ? this.editStationCustomValue.trim()
-        : this.editStationValue;
-
-    if (!station) {
-      this.message.set('กรอกชื่อสถานที่');
-      return;
+    } else {
+      this.menuService.createCategory(payload).subscribe({
+        next: () => {
+          this.closeCategoryForm();
+          this.reload();
+        },
+        error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มหมวดหมู่ไม่สำเร็จ')
+      });
     }
-
-    this.menuService
-      .updateCategory(cat.id, { name: cat.name, sort_order: cat.sort_order, station })
-      .subscribe({
-        next: () => {
-          this.message.set(null);
-          this.closeStationEditor();
-          this.reload();
-        },
-        error: (err) => this.message.set(err?.error?.error ?? 'แก้ไขสถานที่ไม่สำเร็จ')
-      });
   }
 
   deleteCategory(id: number): void {
     if (this.categoryHasItems(id)) {
-      this.message.set('ลบหมวดหมู่นี้ไม่ได้ เพราะยังมีเมนูอยู่ในหมวดนี้ กรุณาย้ายหรือลบเมนูออกก่อน');
+      this.toastService.error('ลบหมวดหมู่นี้ไม่ได้ เพราะยังมีเมนูอยู่ในหมวดนี้ กรุณาย้ายหรือลบเมนูออกก่อน');
       return;
     }
     const cat = this.categories().find((c) => c.id === id);
     this.askConfirm(`ยืนยันลบหมวดหมู่ "${cat?.name ?? ''}"? การลบไม่สามารถย้อนกลับได้`, () => {
       this.menuService.deleteCategory(id).subscribe({
         next: () => this.reload(),
-        error: (err) => this.message.set(err?.error?.error ?? 'ลบหมวดหมู่ไม่สำเร็จ')
+        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบหมวดหมู่ไม่สำเร็จ')
       });
     });
   }
 
-  // ---- popup เพิ่มเมนู ----
-
-  openAddItemModal(): void {
-    this.newItemName = '';
-    this.newItemPrice = null;
-    if (!this.newItemCategoryId && this.categories().length > 0) {
-      this.newItemCategoryId = this.categories()[0].id;
+  archiveCategory(cat: Category): void {
+    if (this.categoryHasItems(cat.id)) {
+      this.toastService.error('เก็บหมวดหมู่นี้ไม่ได้ เพราะยังมีเมนูอยู่ในหมวดนี้ กรุณาย้ายหรือเก็บเมนูออกก่อน');
+      return;
     }
-    this.newItemOptionGroups = [];
-    this.message.set(null);
-    this.addItemModalOpen.set(true);
+    this.askConfirm(`เก็บหมวดหมู่ "${cat.name}" เข้าคลังเก็บถาวร? กู้คืนได้ทีหลังที่แท็บ "เมนูที่เก็บถาวร"`, () => {
+      this.menuService.archiveCategory(cat.id).subscribe({
+        next: () => this.reload(),
+        error: (err) => this.toastService.error(err?.error?.error ?? 'เก็บหมวดหมู่ไม่สำเร็จ')
+      });
+    }, 'เก็บถาวร');
   }
 
-  closeAddItemModal(): void {
-    this.addItemModalOpen.set(false);
-  }
-
-  // ---- ตัวเลือกเมนูที่ร่างไว้ใน popup เพิ่มเมนู ----
-
-  addDraftOptionGroup(): void {
-    this.newItemOptionGroups.push({
-      name: '',
-      is_required: true,
-      choices: [{ name: '', price_delta: 0 }]
+  restoreCategory(cat: Category): void {
+    this.menuService.restoreCategory(cat.id).subscribe({
+      next: () => this.reload(),
+      error: (err) => this.toastService.error(err?.error?.error ?? 'กู้คืนหมวดหมู่ไม่สำเร็จ')
     });
   }
 
-  removeDraftOptionGroup(index: number): void {
-    this.newItemOptionGroups.splice(index, 1);
-  }
+  // เรียงลำดับหมวดหมู่ขึ้น/ลง — สลับค่า sort_order กับหมวดข้างเคียงแล้วบันทึกทั้งคู่
+  moveCategory(cat: Category, direction: -1 | 1): void {
+    const list = [...this.categories()].sort((a, b) => a.sort_order - b.sort_order);
+    const index = list.findIndex((c) => c.id === cat.id);
+    const targetIndex = index + direction;
+    if (index === -1 || targetIndex < 0 || targetIndex >= list.length) return;
 
-  addDraftOptionGroupChoice(groupIndex: number): void {
-    this.newItemOptionGroups[groupIndex].choices.push({ name: '', price_delta: 0 });
-  }
+    const other = list[targetIndex];
+    const catSort = cat.sort_order;
+    const otherSort = other.sort_order;
 
-  removeDraftOptionGroupChoice(groupIndex: number, choiceIndex: number): void {
-    const group = this.newItemOptionGroups[groupIndex];
-    if (group.choices.length <= 1) return;
-    group.choices.splice(choiceIndex, 1);
-  }
-
-  addItem(): void {
-    if (!this.newItemName.trim() || !this.newItemCategoryId || !this.newItemPrice || this.newItemPrice <= 0) {
-      this.message.set('กรอกชื่อเมนู ราคา และหมวดหมู่ให้ครบ');
-      return;
-    }
     this.menuService
-      .createMenuItem({
-        name: this.newItemName,
-        price: this.newItemPrice,
-        category_id: this.newItemCategoryId,
-        is_available: true
-      })
-      .subscribe({
-        next: (created) => {
-          this.createDraftOptionGroups(created.id, this.newItemOptionGroups, () => {
-            this.newItemName = '';
-            this.newItemPrice = null;
-            this.newItemOptionGroups = [];
-            this.message.set(null);
-            this.closeAddItemModal();
-            this.reload();
-          });
-        },
-        error: (err) => this.message.set(err?.error?.error ?? 'เพิ่มเมนูไม่สำเร็จ')
+      .updateCategory(cat.id, { ...cat, sort_order: otherSort })
+      .subscribe(() => {
+        this.menuService.updateCategory(other.id, { ...other, sort_order: catSort }).subscribe({
+          next: () => this.reload(),
+          error: (err) => this.toastService.error(err?.error?.error ?? 'จัดลำดับไม่สำเร็จ')
+        });
       });
   }
 
-  // สร้างกลุ่มตัวเลือกที่ร่างไว้ทั้งหมดให้เมนูที่เพิ่งบันทึกสำเร็จ (ข้ามกลุ่ม/ตัวเลือกย่อยที่ไม่ได้กรอกชื่อ)
-  // ทำหลังจากมี menuItemId จริงแล้วเท่านั้น เพราะ endpoint สร้างกลุ่มตัวเลือกต้องผูกกับเมนูที่มีอยู่แล้ว
-  private createDraftOptionGroups(menuItemId: number, groups: DraftOptionGroup[], onDone: () => void): void {
-    const validGroups = groups
-      .map((g) => ({
-        name: g.name.trim(),
-        is_required: g.is_required,
-        choices: g.choices
-          .filter((c) => c.name.trim().length > 0)
-          .map((c) => ({ name: c.name.trim(), price_delta: c.price_delta ?? 0 }))
-      }))
-      .filter((g) => g.name.length > 0 && g.choices.length > 0);
+  // =========================================================================
+  // ---- เมนู: full-page form (เพิ่ม/แก้ไข) ----
+  // =========================================================================
 
-    if (validGroups.length === 0) {
-      onDone();
-      return;
-    }
+  itemFormName = '';
+  itemFormPrice: number | null = null;
+  itemFormCategoryId: number | null = null;
+  itemFormFeatured = false;
+  itemFormBestseller = false;
+  itemFormTrackStock = false;
+  itemFormEditingItem = signal<MenuItem | null>(null);
+  itemFormImagePreviewUrl = signal<string | null>(null);
+  itemFormPendingImageFile: File | null = null;
+  itemFormUploadingImage = signal(false);
+  // ค่าเริ่มต้นตัวเลือกของหมวดหมู่ที่เมนูนี้สังกัดอยู่ — โชว์เป็นทางลัดในหน้าแก้ไขเมนู
+  itemFormCategoryTemplates = signal<CategoryOptionTemplate[]>([]);
 
-    let remaining = validGroups.length;
-    let hadError = false;
-    for (const group of validGroups) {
-      this.menuService.createOptionGroup(menuItemId, group).subscribe({
-        next: () => {
-          remaining--;
-          if (remaining === 0) onDone();
+  openAddItemForm(): void {
+    this.itemFormName = '';
+    this.itemFormPrice = null;
+    this.itemFormCategoryId = this.categories()[0]?.id ?? null;
+    this.itemFormFeatured = false;
+    this.itemFormBestseller = false;
+    this.itemFormTrackStock = false;
+    this.itemFormEditingItem.set(null);
+    this.itemFormImagePreviewUrl.set(null);
+    this.itemFormPendingImageFile = null;
+    this.itemFormCategoryTemplates.set([]);
+    this.view.set({ kind: 'item-form', editingId: null });
+  }
+
+  openEditItemForm(item: MenuItem): void {
+    this.itemFormName = item.name;
+    this.itemFormPrice = item.price;
+    this.itemFormCategoryId = item.category_id;
+    this.itemFormFeatured = item.is_featured;
+    this.itemFormBestseller = item.is_bestseller;
+    this.itemFormTrackStock = item.track_stock;
+    this.itemFormEditingItem.set(item);
+    this.itemFormImagePreviewUrl.set(this.mediaUrl(item.image_path));
+    this.itemFormPendingImageFile = null;
+    this.menuService.getCategoryOptionTemplates(item.category_id).subscribe({
+      next: (templates) => this.itemFormCategoryTemplates.set(templates),
+      error: () => this.itemFormCategoryTemplates.set([])
+    });
+    this.view.set({ kind: 'item-form', editingId: item.id });
+  }
+
+  closeItemForm(): void {
+    this.view.set({ kind: 'none' });
+  }
+
+  onItemImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const editingItem = this.itemFormEditingItem();
+    if (editingItem) {
+      // เมนูมีอยู่แล้ว อัปโหลดได้ทันที
+      this.itemFormUploadingImage.set(true);
+      this.menuService.uploadMenuItemImage(editingItem.id, file).subscribe({
+        next: (updated) => {
+          this.itemFormUploadingImage.set(false);
+          this.itemFormImagePreviewUrl.set(this.mediaUrl(updated.image_path));
+          this.itemFormEditingItem.set(updated);
+          this.reload();
         },
-        error: () => {
-          if (!hadError) {
-            hadError = true;
-            this.message.set('เพิ่มเมนูสำเร็จ แต่เพิ่มตัวเลือกบางกลุ่มไม่สำเร็จ ลองแก้ไขเมนูนี้ทีหลังได้');
-          }
-          remaining--;
-          if (remaining === 0) onDone();
+        error: (err) => {
+          this.itemFormUploadingImage.set(false);
+          this.toastService.error(err?.error?.error ?? 'อัปโหลดรูปไม่สำเร็จ');
         }
       });
+    } else {
+      // เมนูใหม่ยังไม่มี id — เก็บไฟล์ไว้ก่อน จะอัปโหลดจริงหลังบันทึกเมนูสำเร็จ
+      this.itemFormPendingImageFile = file;
+      this.itemFormImagePreviewUrl.set(URL.createObjectURL(file));
+    }
+  }
+
+  removeItemImage(): void {
+    const editingItem = this.itemFormEditingItem();
+    if (editingItem && editingItem.image_path) {
+      this.menuService.deleteMenuItemImage(editingItem.id).subscribe({
+        next: (updated) => {
+          this.itemFormImagePreviewUrl.set(null);
+          this.itemFormEditingItem.set(updated);
+          this.reload();
+        },
+        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบรูปไม่สำเร็จ')
+      });
+    } else {
+      this.itemFormPendingImageFile = null;
+      this.itemFormImagePreviewUrl.set(null);
     }
   }
 
   toggleAvailable(item: MenuItem): void {
     this.menuService.updateMenuItem(item.id, { ...item, is_available: !item.is_available }).subscribe({
       next: () => this.reload(),
-      error: (err) => this.message.set(err?.error?.error ?? 'แก้ไขสถานะเมนูไม่สำเร็จ')
+      error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขสถานะเมนูไม่สำเร็จ')
     });
   }
 
-  // ---- popup แก้ไขเมนู ----
-
-  openEditItemModal(item: MenuItem): void {
-    this.editItemModalItem.set(item);
-    this.editItemName = item.name;
-    this.editItemPrice = item.price;
-    this.editItemCategoryId = item.category_id;
-    this.message.set(null);
-  }
-
-  closeEditItemModal(): void {
-    this.editItemModalItem.set(null);
-  }
-
-  confirmSaveEditItem(): void {
-    const item = this.editItemModalItem();
-    if (!item) return;
+  saveItemForm(): void {
     if (
-      !this.editItemName.trim() ||
-      !this.editItemCategoryId ||
-      !this.editItemPrice ||
-      this.editItemPrice <= 0
+      !this.itemFormName.trim() ||
+      !this.itemFormCategoryId ||
+      !this.itemFormPrice ||
+      this.itemFormPrice <= 0
     ) {
-      this.message.set('กรอกชื่อเมนู ราคา และหมวดหมู่ให้ครบ');
+      this.toastService.error('กรอกชื่อเมนู ราคา และหมวดหมู่ให้ครบ');
       return;
     }
 
-    this.askConfirm(`ยืนยันบันทึกการแก้ไขเมนู "${item.name}"?`, () => {
-      this.menuService
-        .updateMenuItem(item.id, {
-          name: this.editItemName,
-          price: this.editItemPrice!,
-          category_id: this.editItemCategoryId!,
-          is_available: item.is_available
-        })
-        .subscribe({
-          next: () => {
-            this.message.set(null);
-            this.closeEditItemModal();
+    const editingItem = this.itemFormEditingItem();
+    const payload: Partial<MenuItem> = {
+      name: this.itemFormName.trim(),
+      price: this.itemFormPrice,
+      category_id: this.itemFormCategoryId,
+      is_available: editingItem ? editingItem.is_available : true,
+      is_featured: this.itemFormFeatured,
+      is_bestseller: this.itemFormBestseller,
+      track_stock: this.itemFormTrackStock
+    };
+
+    if (editingItem) {
+      this.menuService.updateMenuItem(editingItem.id, payload).subscribe({
+        next: () => {
+          this.closeItemForm();
+          this.reload();
+        },
+        error: (err) => this.toastService.error(err?.error?.error ?? 'แก้ไขเมนูไม่สำเร็จ')
+      });
+    } else {
+      this.menuService.createMenuItem(payload).subscribe({
+        next: (created) => {
+          if (this.itemFormPendingImageFile) {
+            this.menuService.uploadMenuItemImage(created.id, this.itemFormPendingImageFile).subscribe({
+              next: () => {
+                this.closeItemForm();
+                this.reload();
+              },
+              error: () => {
+                this.toastService.warning('เพิ่มเมนูสำเร็จ แต่อัปโหลดรูปไม่สำเร็จ ลองแก้ไขเมนูนี้เพื่ออัปโหลดใหม่ได้');
+                this.closeItemForm();
+                this.reload();
+              }
+            });
+          } else {
+            this.closeItemForm();
             this.reload();
-          },
-          error: (err) => this.message.set(err?.error?.error ?? 'แก้ไขเมนูไม่สำเร็จ')
-        });
-    });
+          }
+        },
+        error: (err) => this.toastService.error(err?.error?.error ?? 'เพิ่มเมนูไม่สำเร็จ')
+      });
+    }
   }
 
   confirmDeleteItem(item: MenuItem): void {
     this.askConfirm(`ยืนยันลบเมนู "${item.name}"? การลบไม่สามารถย้อนกลับได้`, () => {
       this.menuService.deleteMenuItem(item.id).subscribe({
         next: () => this.reload(),
-        error: (err) => this.message.set(err?.error?.error ?? 'ลบเมนูไม่สำเร็จ')
+        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบเมนูไม่สำเร็จ')
       });
     });
   }
 
-  // ---- ค่าเริ่มต้นตัวเลือกระดับหมวดหมู่ ----
-
-  toggleTemplateManager(category: Category): void {
-    if (this.templateManagerCategoryId() === category.id) {
-      this.templateManagerCategoryId.set(null);
-      return;
-    }
-    this.templateManagerCategoryId.set(category.id);
-    this.templateStatus.set(null);
-    this.resetTemplateDraft();
-    this.loadCategoryTemplates(category.id);
+  archiveItem(item: MenuItem): void {
+    this.askConfirm(`เก็บเมนู "${item.name}" เข้าคลังเก็บถาวร? กู้คืนได้ทีหลังที่แท็บ "เมนูที่เก็บถาวร"`, () => {
+      this.menuService.archiveMenuItem(item.id).subscribe({
+        next: () => this.reload(),
+        error: (err) => this.toastService.error(err?.error?.error ?? 'เก็บเมนูไม่สำเร็จ')
+      });
+    }, 'เก็บถาวร');
   }
 
-  loadCategoryTemplates(categoryId: number): void {
-    this.menuService.getCategoryOptionTemplates(categoryId).subscribe({
-      next: (templates) => this.categoryTemplates.set(templates),
-      error: (err) =>
-        this.templateStatus.set({
-          type: 'error',
-          text: err?.error?.error ?? 'โหลดค่าเริ่มต้นไม่สำเร็จ'
+  restoreItem(item: MenuItem): void {
+    this.menuService.restoreMenuItem(item.id).subscribe({
+      next: () => this.reload(),
+      error: (err) => this.toastService.error(err?.error?.error ?? 'กู้คืนเมนูไม่สำเร็จ')
+    });
+  }
+
+  // =========================================================================
+  // ---- เทมเพลตกลุ่มตัวเลือก "ตัวเลือกเสริม" — การ์ดรวมทุกหมวดหมู่ + popup เพิ่ม/แก้ไข ----
+  // =========================================================================
+
+  allTemplates = signal<CategoryOptionTemplate[]>([]);
+
+  loadAllTemplates(): void {
+    this.menuService.getAllCategoryOptionTemplates().subscribe({
+      next: (templates) => this.allTemplates.set(templates),
+      error: (err) => this.toastService.error(err?.error?.error ?? 'โหลดตัวเลือกเสริมไม่สำเร็จ')
+    });
+  }
+
+  templateSelectionLabel(tpl: CategoryOptionTemplate): string {
+    const kind = tpl.selection_type === 'multi' ? 'เลือกได้หลายอย่าง' : 'เลือกได้อย่างเดียว';
+    return tpl.is_required ? `${kind} · บังคับเลือก` : kind;
+  }
+
+  // ---- full-page: เพิ่ม/แก้ไขกลุ่มตัวเลือกเสริม (ฟิลด์เหมือน "เพิ่มกลุ่มตัวเลือก" ของเมนูทุกประการ) ----
+  // ใช้ view() แบบเดียวกับ category-form/item-form ให้หน้าตาเป็นแบบเดียวกันทั้งระบบ (ไม่ใช่ popup แล้ว)
+
+  templateFormEditingId: number | null = null;
+  templateFormCategoryId: number | null = null;
+  templateFormName = '';
+  templateFormDescription = '';
+  templateFormSelectionType: OptionSelectionType = 'single';
+  templateFormMinSelect = 0;
+  templateFormMaxSelect = 1;
+  templateFormRequired = false;
+  templateFormEnabled = true;
+  templateFormChoices: GroupChoiceRow[] = [{ name: '', price_delta: 0, is_default: false, is_enabled: true }];
+  templateFormActiveTemplateKey: string | null = null;
+  private templateFormOriginalChoiceIds: number[] = [];
+
+  openAddTemplateForm(): void {
+    this.templateFormEditingId = null;
+    this.templateFormCategoryId = this.categories()[0]?.id ?? null;
+    this.templateFormName = '';
+    this.templateFormDescription = '';
+    this.templateFormSelectionType = 'single';
+    this.templateFormMinSelect = 0;
+    this.templateFormMaxSelect = 1;
+    this.templateFormRequired = false;
+    this.templateFormEnabled = true;
+    this.templateFormChoices = [{ name: '', price_delta: 0, is_default: false, is_enabled: true }];
+    this.templateFormOriginalChoiceIds = [];
+    this.templateFormActiveTemplateKey = null;
+    this.view.set({ kind: 'template-form', editingId: null });
+  }
+
+  openEditTemplateForm(tpl: CategoryOptionTemplate): void {
+    this.templateFormEditingId = tpl.id;
+    this.templateFormCategoryId = tpl.category_id;
+    this.templateFormName = tpl.name;
+    this.templateFormDescription = tpl.description ?? '';
+    this.templateFormSelectionType = tpl.selection_type ?? 'single';
+    this.templateFormMinSelect = tpl.min_select ?? 0;
+    this.templateFormMaxSelect = tpl.max_select ?? 1;
+    this.templateFormRequired = tpl.is_required;
+    this.templateFormEnabled = tpl.is_enabled ?? true;
+    this.templateFormChoices = (tpl.choices ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      price_delta: c.price_delta,
+      is_default: c.is_default,
+      is_enabled: c.is_enabled
+    }));
+    this.templateFormOriginalChoiceIds = (tpl.choices ?? []).map((c) => c.id);
+    if (this.templateFormChoices.length === 0) {
+      this.templateFormChoices = [{ name: '', price_delta: 0, is_default: false, is_enabled: true }];
+    }
+    this.templateFormActiveTemplateKey = null;
+    this.view.set({ kind: 'template-form', editingId: tpl.id });
+  }
+
+  closeTemplateForm(): void {
+    this.view.set({ kind: 'none' });
+  }
+
+  applyQuickOptionTemplateToTemplateForm(tpl: QuickOptionTemplate): void {
+    this.templateFormActiveTemplateKey = tpl.key;
+    if (!this.templateFormName.trim()) {
+      this.templateFormName = tpl.label;
+    }
+    this.templateFormChoices = tpl.choices.map((name) => ({ name, price_delta: 0, is_default: false, is_enabled: true }));
+  }
+
+  addTemplateFormChoiceRow(): void {
+    this.templateFormChoices.push({ name: '', price_delta: 0, is_default: false, is_enabled: true });
+  }
+
+  removeTemplateFormChoiceRow(index: number): void {
+    if (this.templateFormChoices.length <= 1) return;
+    this.templateFormChoices.splice(index, 1);
+  }
+
+  toggleTemplateFormChoiceDefault(index: number): void {
+    const row = this.templateFormChoices[index];
+    const newValue = !row.is_default;
+    if (this.templateFormSelectionType === 'single' && newValue) {
+      this.templateFormChoices.forEach((c) => (c.is_default = false));
+    }
+    row.is_default = newValue;
+  }
+
+  toggleTemplateFormChoiceEnabled(index: number): void {
+    const row = this.templateFormChoices[index];
+    row.is_enabled = !row.is_enabled;
+  }
+
+  saveTemplateForm(): void {
+    const name = this.templateFormName.trim();
+    const rows = this.templateFormChoices.filter((c) => c.name.trim().length > 0);
+
+    if (!name || !this.templateFormCategoryId || rows.length === 0) {
+      this.toastService.error('กรอกชื่อ หมวดหมู่ และตัวเลือกย่อยอย่างน้อย 1 รายการ');
+      return;
+    }
+
+    const templateFields = {
+      category_id: this.templateFormCategoryId,
+      name,
+      description: this.templateFormDescription.trim(),
+      selection_type: this.templateFormSelectionType,
+      min_select: this.templateFormMinSelect,
+      max_select: this.templateFormMaxSelect,
+      is_required: this.templateFormRequired
+    };
+
+    if (this.templateFormEditingId === null) {
+      // เทมเพลตใหม่ — สร้างพร้อมตัวเลือกย่อยทั้งหมดในคำขอเดียว (endpoint รองรับอยู่แล้ว)
+      this.menuService
+        .createCategoryOptionTemplate({
+          ...templateFields,
+          choices: rows.map((c) => ({ name: c.name.trim(), price_delta: c.price_delta ?? 0, is_default: c.is_default }))
         })
-    });
-  }
-
-  resetTemplateDraft(): void {
-    this.newTemplateName = '';
-    this.newTemplateRequired = true;
-    this.draftTemplateChoices = [{ name: '', price_delta: 0 }];
-  }
-
-  addDraftTemplateChoiceRow(): void {
-    this.draftTemplateChoices.push({ name: '', price_delta: 0 });
-  }
-
-  removeDraftTemplateChoiceRow(index: number): void {
-    if (this.draftTemplateChoices.length <= 1) return;
-    this.draftTemplateChoices.splice(index, 1);
-  }
-
-  saveTemplate(categoryId: number): void {
-    const name = this.newTemplateName.trim();
-    const choices = this.draftTemplateChoices
-      .filter((c) => c.name.trim().length > 0)
-      .map((c) => ({ name: c.name.trim(), price_delta: c.price_delta ?? 0 }));
-
-    if (!name || choices.length === 0) {
-      this.templateStatus.set({
-        type: 'error',
-        text: 'กรอกชื่อค่าเริ่มต้น และตัวเลือกย่อยอย่างน้อย 1 รายการ'
-      });
+        .subscribe({
+          next: () => {
+            this.toastService.success(`บันทึก "${name}" แล้ว`);
+            this.closeTemplateForm();
+            this.loadAllTemplates();
+          },
+          error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
+        });
       return;
     }
 
-    this.menuService
-      .createCategoryOptionTemplate(categoryId, {
-        name,
-        is_required: this.newTemplateRequired,
-        choices
+    // เทมเพลตที่มีอยู่แล้ว — บันทึกฟิลด์หลักก่อน แล้ว diff ตารางตัวเลือกเหมือน saveOptionGroupForm
+    // (มี id เดิม=update, ไม่มี id=add, id เดิมที่หายไปจากตาราง=delete)
+    const templateId = this.templateFormEditingId;
+    const rowIds = new Set(rows.map((r) => r.id).filter((id): id is number => id !== undefined));
+    const removedIds = this.templateFormOriginalChoiceIds.filter((id) => !rowIds.has(id));
+
+    const tasks: Observable<unknown>[] = [
+      this.menuService.updateCategoryOptionTemplate(templateId, {
+        ...templateFields,
+        is_enabled: this.templateFormEnabled
       })
-      .subscribe({
-        next: () => {
-          this.templateStatus.set({ type: 'success', text: `บันทึก "${name}" แล้ว` });
-          this.resetTemplateDraft();
-          this.loadCategoryTemplates(categoryId);
-        },
-        error: (err) =>
-          this.templateStatus.set({
-            type: 'error',
-            text: err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'
+    ];
+    for (const row of rows) {
+      if (row.id !== undefined) {
+        tasks.push(
+          this.menuService.updateCategoryOptionTemplateChoice(row.id, {
+            name: row.name.trim(),
+            price_delta: row.price_delta ?? 0,
+            is_default: row.is_default,
+            is_enabled: row.is_enabled
           })
-      });
-  }
+        );
+      } else {
+        tasks.push(
+          this.menuService.addCategoryOptionTemplateChoice(templateId, {
+            name: row.name.trim(),
+            price_delta: row.price_delta ?? 0,
+            is_default: row.is_default
+          })
+        );
+      }
+    }
+    for (const id of removedIds) {
+      tasks.push(this.menuService.deleteCategoryOptionTemplateChoice(id));
+    }
 
-  deleteTemplate(categoryId: number, templateId: number): void {
-    this.menuService.deleteCategoryOptionTemplate(templateId).subscribe({
+    forkJoin(tasks).subscribe({
       next: () => {
-        this.templateStatus.set({ type: 'success', text: 'ลบแล้ว' });
-        this.loadCategoryTemplates(categoryId);
+        this.toastService.success(`บันทึก "${name}" แล้ว`);
+        this.closeTemplateForm();
+        this.loadAllTemplates();
       },
-      error: (err) =>
-        this.templateStatus.set({ type: 'error', text: err?.error?.error ?? 'ลบไม่สำเร็จ' })
+      error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
     });
   }
 
-  // ---- popup แก้ไขตัวเลือกของเมนู ----
-
-  openOptionModal(item: MenuItem): void {
-    this.optionModalItem.set(item);
-    this.optionSaveStatus.set(null);
-    this.resetGroupDraft();
-    this.menuService.getCategoryOptionTemplates(item.category_id).subscribe({
-      next: (templates) => this.optionModalTemplates.set(templates),
-      error: () => this.optionModalTemplates.set([])
+  confirmDeleteTemplate(tpl: CategoryOptionTemplate): void {
+    this.askConfirm(`ยืนยันลบ "${tpl.name}"? การลบไม่สามารถย้อนกลับได้`, () => {
+      this.menuService.deleteCategoryOptionTemplate(tpl.id).subscribe({
+        next: () => {
+          this.toastService.success('ลบแล้ว');
+          this.loadAllTemplates();
+        },
+        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบไม่สำเร็จ')
+      });
     });
   }
 
-  closeOptionModal(): void {
-    this.optionModalItem.set(null);
-    this.optionModalTemplates.set([]);
-  }
-
-  resetGroupDraft(): void {
-    this.newGroupName = '';
-    this.newGroupRequired = true;
-    this.draftChoices = [{ name: '', price_delta: 0 }];
-  }
-
-  addDraftChoiceRow(): void {
-    this.draftChoices.push({ name: '', price_delta: 0 });
-  }
-
-  removeDraftChoiceRow(index: number): void {
-    if (this.draftChoices.length <= 1) return;
-    this.draftChoices.splice(index, 1);
-  }
-
-  applyTemplate(item: MenuItem, template: CategoryOptionTemplate): void {
+  // ใช้ค่าเริ่มต้นของหมวดหมู่กับเมนูที่กำลังแก้ไขอยู่ (เรียกจากหน้าฟอร์มเมนู)
+  applyTemplateToCurrentItem(template: CategoryOptionTemplate): void {
+    const item = this.itemFormEditingItem();
+    if (!item) return;
     this.menuService.applyOptionTemplateToMenuItem(item.id, template.id).subscribe({
       next: () => {
-        this.optionSaveStatus.set({ type: 'success', text: `ใช้ค่าเริ่มต้น "${template.name}" แล้ว` });
-        this.reload();
+        this.toastService.success(`ใช้ค่าเริ่มต้น "${template.name}" แล้ว`);
+        this.reloadEditingItem(item.id);
       },
-      error: (err) =>
-        this.optionSaveStatus.set({
-          type: 'error',
-          text: err?.error?.error ?? 'ใช้ค่าเริ่มต้นไม่สำเร็จ ลองใหม่อีกครั้ง'
-        })
+      error: (err) => this.toastService.error(err?.error?.error ?? 'ใช้ค่าเริ่มต้นไม่สำเร็จ ลองใหม่อีกครั้ง')
     });
   }
 
-  // เปลี่ยน "บังคับให้เลือก" ของกลุ่มตัวเลือกที่มีอยู่แล้ว (ไม่ใช่แค่ตอนสร้างใหม่)
-  toggleGroupRequired(group: MenuOptionGroup): void {
-    const newValue = !group.is_required;
-    this.menuService.updateOptionGroup(group.id, { is_required: newValue }).subscribe({
-      next: () => {
-        this.optionSaveStatus.set({
-          type: 'success',
-          text: `ตั้งค่า "${group.name}" เป็น${newValue ? 'บังคับให้เลือก' : 'ไม่บังคับ'}แล้ว`
-        });
-        this.reload();
-      },
-      error: (err) =>
-        this.optionSaveStatus.set({
-          type: 'error',
-          text: err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'
-        })
+  private reloadEditingItem(itemId: number): void {
+    this.menuService.getMenuItems(undefined, true).subscribe({
+      next: (items) => {
+        this.allMenuItemsRaw.set(items);
+        const updated = items.find((i) => i.id === itemId);
+        if (updated) this.itemFormEditingItem.set(updated);
+      }
     });
   }
 
-  saveOptionGroup(item: MenuItem): void {
-    const name = this.newGroupName.trim();
-    const choices = this.draftChoices
-      .filter((c) => c.name.trim().length > 0)
-      .map((c) => ({ name: c.name.trim(), price_delta: c.price_delta ?? 0 }));
+  // =========================================================================
+  // ---- กลุ่มตัวเลือกของเมนู: full-page form (เพิ่ม/แก้ไข) — เปิดจากหน้าแก้ไขเมนู ----
+  // =========================================================================
 
-    if (!name || choices.length === 0) {
-      this.optionSaveStatus.set({
-        type: 'error',
-        text: 'กรอกชื่อกลุ่มตัวเลือก และตัวเลือกย่อยอย่างน้อย 1 รายการ'
-      });
+  groupFormName = '';
+  groupFormDescription = '';
+  groupFormSelectionType: OptionSelectionType = 'single';
+  groupFormMinSelect = 0;
+  groupFormMaxSelect = 1;
+  groupFormRequired = false;
+  groupFormEnabled = true;
+  groupFormSortOrder = 0;
+  groupFormChoices: GroupChoiceRow[] = [{ name: '', price_delta: 0, is_default: false, is_enabled: true }];
+  groupFormActiveTemplateKey: string | null = null;
+  // เก็บ id ของตัวเลือกย่อยตอนเปิดฟอร์มแก้ไข ไว้ diff ตอนบันทึกว่าแถวไหนถูกลบออกไปจากตาราง
+  private groupFormOriginalChoiceIds: number[] = [];
+
+  openAddOptionGroupForm(item: MenuItem): void {
+    this.groupFormName = '';
+    this.groupFormDescription = '';
+    this.groupFormSelectionType = 'single';
+    this.groupFormMinSelect = 0;
+    this.groupFormMaxSelect = 1;
+    this.groupFormRequired = false;
+    this.groupFormEnabled = true;
+    this.groupFormSortOrder = item.option_groups?.length ?? 0;
+    this.groupFormChoices = [{ name: '', price_delta: 0, is_default: false, is_enabled: true }];
+    this.groupFormOriginalChoiceIds = [];
+    this.groupFormActiveTemplateKey = null;
+    this.view.set({ kind: 'option-group-form', menuItemId: item.id, editingGroupId: null });
+  }
+
+  openEditOptionGroupForm(item: MenuItem, group: MenuOptionGroup): void {
+    this.groupFormName = group.name;
+    this.groupFormDescription = group.description ?? '';
+    this.groupFormSelectionType = group.selection_type ?? 'single';
+    this.groupFormMinSelect = group.min_select ?? 0;
+    this.groupFormMaxSelect = group.max_select ?? 1;
+    this.groupFormRequired = group.is_required;
+    this.groupFormEnabled = group.is_enabled ?? true;
+    this.groupFormSortOrder = group.sort_order;
+    this.groupFormChoices = (group.choices ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      price_delta: c.price_delta,
+      is_default: c.is_default,
+      is_enabled: c.is_enabled
+    }));
+    this.groupFormOriginalChoiceIds = (group.choices ?? []).map((c) => c.id);
+    if (this.groupFormChoices.length === 0) {
+      this.groupFormChoices = [{ name: '', price_delta: 0, is_default: false, is_enabled: true }];
+    }
+    this.groupFormActiveTemplateKey = null;
+    this.view.set({ kind: 'option-group-form', menuItemId: item.id, editingGroupId: group.id });
+  }
+
+  closeOptionGroupForm(): void {
+    const v = this.view();
+    if (v.kind === 'option-group-form') {
+      this.view.set({ kind: 'item-form', editingId: v.menuItemId });
+    } else {
+      this.view.set({ kind: 'none' });
+    }
+  }
+
+  applyQuickOptionTemplate(tpl: QuickOptionTemplate): void {
+    this.groupFormActiveTemplateKey = tpl.key;
+    if (!this.groupFormName.trim()) {
+      this.groupFormName = tpl.label;
+    }
+    // เทมเพลตด่วนแทนที่ตารางตัวเลือกทั้งหมดด้วยชุดใหม่ (แถวเดิมที่มี id จะถูกลบไปตอนบันทึก เพราะไม่อยู่ใน draft แล้ว)
+    this.groupFormChoices = tpl.choices.map((name) => ({ name, price_delta: 0, is_default: false, is_enabled: true }));
+  }
+
+  addGroupFormChoiceRow(): void {
+    this.groupFormChoices.push({ name: '', price_delta: 0, is_default: false, is_enabled: true });
+  }
+
+  removeGroupFormChoiceRow(index: number): void {
+    if (this.groupFormChoices.length <= 1) return;
+    this.groupFormChoices.splice(index, 1);
+  }
+
+  // ตัวเลือก "เริ่มต้น" ถ้าเป็นแบบเลือกได้อย่างเดียว (single) ให้เลือกได้แค่แถวเดียว — ติ๊กแถวใหม่แล้วเคลียร์แถวอื่น
+  toggleGroupFormChoiceDefault(index: number): void {
+    const row = this.groupFormChoices[index];
+    const newValue = !row.is_default;
+    if (this.groupFormSelectionType === 'single' && newValue) {
+      this.groupFormChoices.forEach((c) => (c.is_default = false));
+    }
+    row.is_default = newValue;
+  }
+
+  toggleGroupFormChoiceEnabled(index: number): void {
+    const row = this.groupFormChoices[index];
+    row.is_enabled = !row.is_enabled;
+  }
+
+  saveOptionGroupForm(): void {
+    const name = this.groupFormName.trim();
+    const rows = this.groupFormChoices.filter((c) => c.name.trim().length > 0);
+
+    if (!name || rows.length === 0) {
+      this.toastService.error('กรอกชื่อกลุ่มตัวเลือก และตัวเลือกย่อยอย่างน้อย 1 รายการ');
       return;
     }
 
-    this.menuService
-      .createOptionGroup(item.id, { name, is_required: this.newGroupRequired, choices })
-      .subscribe({
-        next: () => {
-          this.optionSaveStatus.set({ type: 'success', text: `บันทึก "${name}" แล้ว` });
-          this.resetGroupDraft();
-          this.reload();
-        },
-        error: (err) =>
-          this.optionSaveStatus.set({
-            type: 'error',
-            text: err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'
-          })
-      });
-  }
+    const v = this.view();
+    if (v.kind !== 'option-group-form') return;
 
-  deleteGroup(groupId: number): void {
-    this.menuService.deleteOptionGroup(groupId).subscribe({
-      next: () => {
-        this.optionSaveStatus.set({ type: 'success', text: 'ลบกลุ่มตัวเลือกแล้ว' });
-        this.reload();
-      },
-      error: (err) =>
-        this.optionSaveStatus.set({ type: 'error', text: err?.error?.error ?? 'ลบไม่สำเร็จ' })
-    });
-  }
+    const groupFields = {
+      name,
+      description: this.groupFormDescription.trim(),
+      selection_type: this.groupFormSelectionType,
+      min_select: this.groupFormMinSelect,
+      max_select: this.groupFormMaxSelect,
+      is_required: this.groupFormRequired,
+      sort_order: this.groupFormSortOrder
+    };
 
-  choiceDraft(groupId: number): ChoiceDraft {
-    if (!this.choiceDrafts[groupId]) {
-      this.choiceDrafts[groupId] = { name: '', price_delta: 0 };
+    if (v.editingGroupId === null) {
+      // กลุ่มใหม่ — สร้างกลุ่ม+ตัวเลือกทั้งหมดในคำขอเดียว (endpoint รองรับอยู่แล้ว)
+      this.menuService
+        .createOptionGroup(v.menuItemId, {
+          ...groupFields,
+          choices: rows.map((c) => ({ name: c.name.trim(), price_delta: c.price_delta ?? 0, is_default: c.is_default }))
+        })
+        .subscribe({
+          next: () => {
+            this.toastService.success(`บันทึก "${name}" แล้ว`);
+            this.reloadEditingItem(v.menuItemId);
+            this.closeOptionGroupForm();
+          },
+          error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
+        });
+      return;
     }
-    return this.choiceDrafts[groupId];
-  }
 
-  addChoiceToGroup(group: MenuOptionGroup): void {
-    const draft = this.choiceDraft(group.id);
-    const name = draft.name.trim();
-    if (!name) return;
+    // กลุ่มที่มีอยู่แล้ว — บันทึกฟิลด์ของกลุ่มก่อน แล้ว diff ตารางตัวเลือก: มี id เดิม=update, ไม่มี id=add,
+    // id เดิมที่หายไปจากตาราง=delete ตามลำดับ ไม่งั้นแก้ตารางตัวเลือกแล้วกดบันทึกจะไม่มีผลอะไรกับตัวเลือกเลย
+    const groupId = v.editingGroupId;
+    const rowIds = new Set(rows.map((r) => r.id).filter((id): id is number => id !== undefined));
+    const removedIds = this.groupFormOriginalChoiceIds.filter((id) => !rowIds.has(id));
 
-    this.menuService.addOptionChoice(group.id, { name, price_delta: draft.price_delta ?? 0 }).subscribe({
+    const tasks: Observable<unknown>[] = [
+      this.menuService.updateOptionGroup(groupId, { ...groupFields, is_enabled: this.groupFormEnabled })
+    ];
+    for (const row of rows) {
+      if (row.id !== undefined) {
+        tasks.push(
+          this.menuService.updateOptionChoice(row.id, {
+            name: row.name.trim(),
+            price_delta: row.price_delta ?? 0,
+            is_default: row.is_default,
+            is_enabled: row.is_enabled
+          })
+        );
+      } else {
+        tasks.push(
+          this.menuService.addOptionChoice(groupId, {
+            name: row.name.trim(),
+            price_delta: row.price_delta ?? 0,
+            is_default: row.is_default
+          })
+        );
+      }
+    }
+    for (const id of removedIds) {
+      tasks.push(this.menuService.deleteOptionChoice(id));
+    }
+
+    forkJoin(tasks).subscribe({
       next: () => {
-        delete this.choiceDrafts[group.id];
-        this.optionSaveStatus.set({ type: 'success', text: `เพิ่ม "${name}" แล้ว` });
-        this.reload();
+        this.toastService.success(`บันทึก "${name}" แล้ว`);
+        this.reloadEditingItem(v.menuItemId);
+        this.closeOptionGroupForm();
       },
-      error: (err) =>
-        this.optionSaveStatus.set({ type: 'error', text: err?.error?.error ?? 'เพิ่มไม่สำเร็จ' })
+      error: (err) => this.toastService.error(err?.error?.error ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
     });
   }
 
-  deleteChoice(choiceId: number): void {
-    this.menuService.deleteOptionChoice(choiceId).subscribe({
-      next: () => {
-        this.optionSaveStatus.set({ type: 'success', text: 'ลบตัวเลือกย่อยแล้ว' });
-        this.reload();
-      },
-      error: (err) =>
-        this.optionSaveStatus.set({ type: 'error', text: err?.error?.error ?? 'ลบไม่สำเร็จ' })
+  deleteGroup(item: MenuItem, groupId: number): void {
+    this.askConfirm('ยืนยันลบกลุ่มตัวเลือกนี้? การลบไม่สามารถย้อนกลับได้', () => {
+      this.menuService.deleteOptionGroup(groupId).subscribe({
+        next: () => {
+          this.toastService.success('ลบกลุ่มตัวเลือกแล้ว');
+          this.reloadEditingItem(item.id);
+        },
+        error: (err) => this.toastService.error(err?.error?.error ?? 'ลบไม่สำเร็จ')
+      });
     });
   }
 }

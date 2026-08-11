@@ -1,59 +1,151 @@
-<div class="max-w-4xl mx-auto p-4">
+<div>
   <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-bold text-gray-900">จัดการโต๊ะ</h1>
-    <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white" (click)="openAddModal()">
-      + เพิ่มโต๊ะ
+    @if (activeTab() === 'tables') {
+      <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white" (click)="openAddModal()">
+        + เพิ่มโต๊ะ
+      </button>
+    }
+  </div>
+
+  <div class="flex gap-2 mb-4 border-b border-gray-200">
+    <button
+      type="button"
+      class="text-sm px-3 py-2 border-b-2 -mb-px"
+      [class.border-accent]="activeTab() === 'tables'"
+      [class.text-accent]="activeTab() === 'tables'"
+      [class.border-transparent]="activeTab() !== 'tables'"
+      [class.text-gray-500]="activeTab() !== 'tables'"
+      (click)="switchTab('tables')"
+    >
+      จัดการโต๊ะ
+    </button>
+    <button
+      type="button"
+      class="text-sm px-3 py-2 border-b-2 -mb-px"
+      [class.border-accent]="activeTab() === 'zones'"
+      [class.text-accent]="activeTab() === 'zones'"
+      [class.border-transparent]="activeTab() !== 'zones'"
+      [class.text-gray-500]="activeTab() !== 'zones'"
+      (click)="switchTab('zones')"
+    >
+      จัดการโซน
     </button>
   </div>
 
-  @if (message()) {
-    <p class="text-sm text-red-600 mb-3">{{ message() }}</p>
+
+  @if (activeTab() === 'tables') {
+    <table class="w-full text-sm border-collapse">
+      <thead>
+        <tr class="text-left text-gray-500 border-b border-gray-200">
+          <th class="py-2">ชื่อโต๊ะ</th>
+          <th class="py-2">โซน</th>
+          <th class="py-2">จำนวนที่นั่ง</th>
+          <th class="py-2">สถานะ</th>
+          <th class="py-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (t of tables(); track t.id) {
+          <tr class="border-b border-gray-100">
+            <td class="py-2">{{ t.name }}</td>
+            <td class="py-2">{{ t.zone || '-' }}</td>
+            <td class="py-2">{{ t.capacity || '-' }}</td>
+            <td class="py-2">
+              <span
+                class="text-xs rounded-full px-2 py-0.5"
+                [class.bg-green-100]="t.status === 'available'"
+                [class.text-green-700]="t.status === 'available'"
+                [class.bg-amber-100]="t.status === 'occupied'"
+                [class.text-amber-700]="t.status === 'occupied'"
+                [class.bg-blue-100]="t.status === 'reserved'"
+                [class.text-blue-700]="t.status === 'reserved'"
+              >
+                {{ t.status === 'available' ? 'ว่าง' : t.status === 'occupied' ? 'มีลูกค้า' : 'จองไว้' }}
+              </span>
+            </td>
+            <td class="py-2">
+              <button
+                type="button"
+                class="text-xs border border-gray-300 rounded-full px-3 py-1 bg-white"
+                (click)="openEditModal(t)"
+              >
+                แก้ไข
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="py-4 text-center text-gray-400">ยังไม่มีโต๊ะ</td>
+          </tr>
+        }
+      </tbody>
+    </table>
   }
 
-  <table class="w-full text-sm border-collapse">
-    <thead>
-      <tr class="text-left text-gray-500 border-b border-gray-200">
-        <th class="py-2">ชื่อโต๊ะ</th>
-        <th class="py-2">โซน</th>
-        <th class="py-2">จำนวนที่นั่ง</th>
-        <th class="py-2">สถานะ</th>
-        <th class="py-2"></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (t of tables(); track t.id) {
-        <tr class="border-b border-gray-100">
-          <td class="py-2">{{ t.name }}</td>
-          <td class="py-2">{{ t.zone || '-' }}</td>
-          <td class="py-2">{{ t.capacity || '-' }}</td>
-          <td class="py-2">
-            <span
-              class="text-xs rounded-full px-2 py-0.5"
-              [class.bg-green-100]="t.status === 'available'"
-              [class.text-green-700]="t.status === 'available'"
-              [class.bg-amber-100]="t.status === 'occupied'"
-              [class.text-amber-700]="t.status === 'occupied'"
-            >
-              {{ t.status === 'available' ? 'ว่าง' : 'มีลูกค้า' }}
-            </span>
-          </td>
-          <td class="py-2">
-            <button
-              type="button"
-              class="text-xs border border-gray-300 rounded-full px-3 py-1 bg-white"
-              (click)="openEditModal(t)"
-            >
-              แก้ไข
-            </button>
-          </td>
-        </tr>
-      } @empty {
-        <tr>
-          <td colspan="5" class="py-4 text-center text-gray-400">ยังไม่มีโต๊ะ</td>
-        </tr>
-      }
-    </tbody>
-  </table>
+  @if (activeTab() === 'zones') {
+    <div class="flex flex-col gap-4">
+      <div class="flex gap-2">
+        <input
+          type="text"
+          placeholder="ชื่อโซนใหม่ เช่น ในร้าน, ริมหน้าต่าง"
+          class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          [(ngModel)]="newZoneName"
+        />
+        <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white" (click)="addZone()">
+          + เพิ่มโซน
+        </button>
+      </div>
+
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr class="text-left text-gray-500 border-b border-gray-200">
+            <th class="py-2">ชื่อโซน</th>
+            <th class="py-2">สถานะ</th>
+            <th class="py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (z of zones(); track z.id) {
+            <tr class="border-b border-gray-100">
+              <td class="py-2">{{ z.name }}</td>
+              <td class="py-2">
+                <span
+                  class="text-xs rounded-full px-2 py-0.5"
+                  [class.bg-green-100]="z.is_active"
+                  [class.text-green-700]="z.is_active"
+                  [class.bg-gray-100]="!z.is_active"
+                  [class.text-gray-500]="!z.is_active"
+                >
+                  {{ z.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน' }}
+                </span>
+              </td>
+              <td class="py-2">
+                <button
+                  type="button"
+                  class="text-xs border rounded-full px-3 py-1 bg-white"
+                  [class.border-gray-300]="z.is_active"
+                  [class.border-amber-400]="!z.is_active"
+                  [class.text-amber-600]="!z.is_active"
+                  (click)="toggleZoneActive(z)"
+                >
+                  {{ z.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }}
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="3" class="py-4 text-center text-gray-400">ยังไม่มีโซน</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <p class="text-xs text-gray-400">
+        ปิดใช้งานโซน เช่น ตอนปิดซ่อม หรือมีการจองที่นั่งไว้ทั้งโซน — โต๊ะในโซนที่ปิดจะไม่โชว์ให้เลือกในหน้าขาย (POS) แต่ยังแก้ไขโต๊ะเดิมในนี้ได้ตามปกติ
+      </p>
+    </div>
+  }
 
   @if (addModalOpen()) {
     <div class="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4" (click)="closeAddModal()">
@@ -76,13 +168,24 @@
           </label>
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             โซน
-            <input
-              type="text"
-              placeholder="เช่น ในร้าน, ริมหน้าต่าง"
-              class="border border-gray-300 rounded-lg px-3 py-2"
-              [(ngModel)]="newTableZone"
-            />
+            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newTableZone">
+              @for (z of zoneOptions(); track z) {
+                <option [ngValue]="z">{{ z }}</option>
+              }
+              <option [ngValue]="customZoneValue">+ เพิ่มโซนใหม่...</option>
+            </select>
           </label>
+          @if (newTableZone === customZoneValue) {
+            <label class="flex flex-col gap-1 text-sm text-gray-600">
+              ชื่อโซนใหม่
+              <input
+                type="text"
+                placeholder="เช่น ในร้าน, ริมหน้าต่าง"
+                class="border border-gray-300 rounded-lg px-3 py-2"
+                [(ngModel)]="newTableZoneCustom"
+              />
+            </label>
+          }
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             จำนวนที่นั่ง
             <input
@@ -130,8 +233,24 @@
           </label>
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             โซน
-            <input type="text" class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editTableZone" />
+            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editTableZone">
+              @for (z of zoneOptions(); track z) {
+                <option [ngValue]="z">{{ z }}</option>
+              }
+              <option [ngValue]="customZoneValue">+ เพิ่มโซนใหม่...</option>
+            </select>
           </label>
+          @if (editTableZone === customZoneValue) {
+            <label class="flex flex-col gap-1 text-sm text-gray-600">
+              ชื่อโซนใหม่
+              <input
+                type="text"
+                placeholder="เช่น ในร้าน, ริมหน้าต่าง"
+                class="border border-gray-300 rounded-lg px-3 py-2"
+                [(ngModel)]="editTableZoneCustom"
+              />
+            </label>
+          }
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             จำนวนที่นั่ง
             <input type="number" min="0" class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editTableCapacity" />
@@ -141,7 +260,11 @@
             <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editTableStatus">
               <option value="available">ว่าง</option>
               <option value="occupied">มีลูกค้า</option>
+              <option value="reserved">จองไว้</option>
             </select>
+            <span class="text-xs text-gray-400">
+              ปกติสถานะจะเปลี่ยนอัตโนมัติตอนเปิดบิล/จองโต๊ะ ใช้ช่องนี้แก้ไขเฉพาะกรณีสถานะค้างผิดพลาด
+            </span>
           </label>
         </div>
         <div class="flex gap-2">

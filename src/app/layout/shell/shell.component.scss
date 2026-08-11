@@ -1,59 +1,338 @@
 .shell {
   display: flex;
-  flex-direction: column;
   height: 100vh;
 }
 
-.topnav {
+// ==================== แถบไอคอนซ้ายถาวร 72px (สเปก 5b) ====================
+.icon-rail {
+  width: 72px;
+  flex: none;
+  background: var(--color-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 6px;
+  z-index: 50;
+}
+
+.rail-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.14);
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  justify-content: center;
+  margin-bottom: 8px;
+  flex: none;
+}
 
-  a {
-    color: var(--color-text-muted);
-    text-decoration: none;
-    font-weight: 500;
-    padding: 0.4rem 0.2rem;
+.rail-item {
+  width: 56px;
+  flex: none;
+  padding: 9px 0;
+  border-radius: 11px;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  position: relative;
 
-    &.active {
-      color: var(--color-primary);
-      border-bottom: 2px solid var(--color-primary);
-    }
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.active {
+    background: var(--color-bg);
+    color: var(--color-primary);
+    font-weight: 600;
   }
 }
 
-.brand {
-  font-weight: 700;
-  font-size: 1.1rem;
+.rail-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-warn);
+  color: #fff;
+  font: 600 10.5px/18px 'IBM Plex Mono', monospace;
+  text-align: center;
+}
+
+.rail-divider {
+  width: 40px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 8px 0;
+  flex: none;
+}
+
+.rail-more {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.rail-spacer {
+  margin-top: auto;
+}
+
+.rail-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+}
+
+// ==================== overlay เมนูเพิ่มเติม (สเปก 5a) ====================
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(36, 42, 61, 0.42);
+  z-index: 60;
+}
+
+.overlay-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 352px;
+  max-width: 88vw;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid var(--color-border);
+  box-shadow: 14px 0 40px rgba(36, 42, 61, 0.18);
+  display: flex;
+  flex-direction: column;
+  z-index: 61;
+}
+
+.overlay-header {
+  height: 60px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid #efece5;
+}
+
+.overlay-close {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.overlay-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.overlay-brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.overlay-word {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
   color: var(--color-primary);
 }
 
-.spacer {
+.overlay-word-light {
+  font-weight: 400;
+  color: var(--color-accent);
+}
+
+.overlay-body {
   flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-.user {
+.overlay-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.3px;
+  color: #9a9484;
+  padding: 16px 10px 8px;
+  border-top: 1px solid #efece5;
+  margin-top: 8px;
+
+  &:first-child {
+    padding-top: 4px;
+    border-top: none;
+    margin-top: 0;
+  }
+}
+
+.overlay-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 12px;
+  border-radius: 11px;
+  font-size: 16px;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  text-decoration: none;
+
+  svg {
+    flex: none;
+  }
+
+  &:hover {
+    background: var(--color-bg);
+  }
+
+  &.active {
+    background: var(--color-highlight-bg);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
 }
 
-.logout-btn {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
+.overlay-footer {
+  flex: none;
+  padding: 14px 16px;
+  border-top: 1px solid #efece5;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.overlay-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-highlight-bg);
+  color: var(--color-primary);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.overlay-user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.overlay-user-name {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay-user-role {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.overlay-logout {
+  flex: none;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid var(--color-danger-bg);
+  background: none;
+  color: var(--color-danger);
+  font: inherit;
+  font-size: 14px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
 
   &:hover {
     background: var(--color-danger-bg);
   }
 }
 
+// ==================== พื้นที่เนื้อหา ====================
 .content {
   flex: 1;
   overflow: auto;
-  padding: 1.5rem;
+  padding: 0.75rem;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+
+  // หน้าที่จัดการ scroll ภายในของตัวเองอยู่แล้ว (เช่นหน้าคิดเงิน) ไม่ต้องการให้ container ชั้นนอก
+  // นี้ scroll ซ้อนอีกชั้น
+  &.no-outer-scroll {
+    overflow: hidden;
+  }
+
+  // เต็มจอจริงๆ ไม่มีขอบ padding รอบนอก + ไม่จำกัด max-width — ใช้กับหน้าคิดเงิน ให้ปุ่มต่างๆ
+  // (แป้นกดเงิน/วิธีชำระ/ยืนยัน) ขยายเต็มพื้นที่ กดง่ายขึ้นโดยเฉพาะบนจอสัมผัส
+  &.full-bleed {
+    padding: 0;
+
+    .page-container {
+      max-width: none;
+      height: 100%;
+    }
+  }
+}
+
+// container กลางที่ทุกหน้าใช้ร่วมกัน (แทนที่ max-width/padding ที่แต่ละหน้าเคยตั้งเองไม่เท่ากัน)
+// เพื่อให้ความกว้าง/ระยะขอบของทุกหน้าเหมือนกันหมด
+// ต้องตั้ง min-height:0 ด้วย ไม่งั้นหน้าที่มีเนื้อหาสูงกว่าที่ stretch ให้ (เช่นคิดเงินตอนคีย์แพดเงินสดยาว)
+// จะดันกล่องนี้สูงเกิน .content ไป ทำให้ปุ่มด้านล่างสุดโดน .content ที่ overflow:hidden (หน้าที่ห้าม scroll
+// ชั้นนอก) ตัดหายไป แทนที่จะปล่อยให้ panel ข้างในจัดการ scroll ของตัวเอง
+.page-container {
+  width: 100%;
+  max-width: 1400px;
+  min-height: 0;
 }

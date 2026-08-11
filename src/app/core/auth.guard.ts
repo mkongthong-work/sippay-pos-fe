@@ -12,6 +12,8 @@ export const authGuard: CanActivateFn = () => {
     return true;
   }
 
-  router.navigate(['/login']);
+  // ค่าเริ่มต้นให้เข้าด้วย PIN ก่อน (เร็วกว่าสำหรับเครื่อง POS ที่ใช้ร่วมกัน) — ยังกดสลับไปหน้า
+  // ชื่อผู้ใช้+รหัสผ่านแบบเดิมได้จากลิงก์ในหน้า PIN
+  router.navigate(['/pin-login']);
   return false;
 };

@@ -1,18 +1,25 @@
-/* Global styles + CSS variables ใช้ร่วมกันทุกหน้า ออกแบบให้ปุ่มใหญ่ กดง่ายบนแท็บเล็ต */
+/* Global styles + CSS variables ใช้ร่วมกันทุกหน้า — ตาม "Sippay Design System" (Warm Navy + Bai Jamjuree)
+   ออกแบบให้ปุ่มใหญ่ กดง่ายบนแท็บเล็ต */
 
 :root {
-  // ชุดสี CI: primary = กรมท่า, accent = ม่วงเข้ม (ใช้กับปุ่มยืนยัน/บันทึกเท่านั้น
-  // เพื่อไม่ให้ไปคล้ายสีแดงของปุ่มยกเลิก), highlight-bg = ฟ้าอ่อน (ใช้กับพื้นหลัง tag/badge)
-  --color-primary: #404969;
-  --color-accent: #5b89d8;
-  --color-highlight-bg: #bde4f4;
-  --color-bg: #f4f4f6;
+  // ชุดสี CI: primary = กรมท่า (หัวข้อ/ปุ่มรอง/แท็บที่เลือก), accent = เขียวอมฟ้า (สงวนไว้เฉพาะปุ่ม
+  // "ที่จบงาน" เช่น ยืนยันชำระเงิน/รับเงิน เท่านั้น — หนึ่งหน้าจอมีปุ่มเขียวได้ปุ่มเดียว), warn/danger ใช้กับ
+  // badge/เส้นขอบสถานะเท่านั้น ห้ามใช้เป็นพื้นปุ่ม, highlight-bg = กรมท่าอ่อน (คู่กับ --color-primary
+  // ตอน active/selected), bg = ครีมอุ่น (พื้นหลังทุกหน้า), border = น้ำตาลอ่อน
+  --color-primary: #38415e;
+  --color-accent: #2e8b84;
+  --color-accent-bg: #e4f2f0;
+  --color-accent-dark: #22706b;
+  --color-warn: #d98324;
+  --color-warn-bg: #fbeedc;
+  --color-highlight-bg: #e6e8ef;
+  --color-bg: #faf8f4;
   --color-surface: #ffffff;
-  --color-border: #e5e5ea;
-  --color-text: #1c1c1e;
-  --color-text-muted: #6b7280;
-  --color-danger: #dc2626;
-  --color-danger-bg: #fee2e2;
+  --color-border: #e7e2d8;
+  --color-text: #242a3d;
+  --color-text-muted: #77726a;
+  --color-danger: #c6413a;
+  --color-danger-bg: #f8e2e1;
 }
 
 * {
@@ -26,8 +33,7 @@ body {
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sarabun", sans-serif;
+  font-family: "Bai Jamjuree", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sarabun", sans-serif;
   background: var(--color-bg);
   color: var(--color-text);
 }
@@ -42,4 +48,44 @@ h1 {
 
 h2 {
   font-size: 1.1rem;
+}
+
+// ตัวเลข/จำนวนเงินทุกจุดใช้ IBM Plex Mono — ตัวเลขกว้างเท่ากันทุกตัว ทำให้หลักหน่วยในบิลเรียงตรงกันทุก
+// บรรทัด อ่านยอดผิดยากขึ้น ใส่ class นี้กับ element ที่แสดงตัวเลขเงิน/จำนวน
+.money,
+.mono-num {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+}
+
+// ---- พิมพ์ใบเสร็จ (app-receipt component) ----
+// ตอนกด "พิมพ์ใบเสร็จ" (window.print()) ให้หน้ากระดาษที่พิมพ์ออกมาเห็นแค่ตัวใบเสร็จ (.receipt-print-root)
+// ไม่เอาส่วนอื่นของแอปติดไปด้วย ต้องอยู่ใน global stylesheet นี้ (ไม่ใช่ SCSS ของ component เอง)
+// เพราะ Angular ViewEncapsulation ทำให้ selector แบบ "body *" ที่เขียนในไฟล์ scss ของ component
+// ไม่ครอบคลุมถึง element ของหน้าอื่นๆ ในแอป (มีแค่ element ของ component ตัวเองเท่านั้นที่ตรงกับ selector)
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt-print-root,
+  .receipt-print-root * {
+    visibility: visible;
+  }
+
+  .receipt-print-root {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    margin: 0;
+    size: 80mm auto;
+  }
 }

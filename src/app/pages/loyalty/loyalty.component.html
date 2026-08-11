@@ -1,0 +1,329 @@
+<div class="loyalty-page">
+
+  <div class="page-header">
+    <h1>สมาชิก &amp; Loyalty</h1>
+    @if (activeTab() === 'members') {
+      <button type="button" class="btn-primary" (click)="openAddModal()" data-testid="member-add-btn">
+        + เพิ่มสมาชิก
+      </button>
+    }
+  </div>
+
+  <div class="tabs">
+    <button data-testid="loyalty-tab-members" [class.active]="activeTab() === 'members'" (click)="activeTab.set('members')">สมาชิก</button>
+    <button data-testid="loyalty-tab-settings" [class.active]="activeTab() === 'settings'" (click)="activeTab.set('settings')">ตั้งค่า</button>
+  </div>
+
+  <!-- ==================== Tab: สมาชิก ==================== -->
+  @if (activeTab() === 'members') {
+    <div class="members-layout">
+
+      <!-- รายชื่อสมาชิก -->
+      <div class="members-list">
+        <div class="search-bar">
+          <input
+            type="text"
+            placeholder="ค้นหาชื่อ / เบอร์โทร..."
+            [(ngModel)]="searchQuery"
+            (input)="onSearch()"
+            data-testid="member-search-input"
+          >
+        </div>
+
+        @if (membersLoading()) {
+          <p class="state-text">กำลังโหลด...</p>
+        } @else if (members().length === 0) {
+          <p class="state-text">{{ searchQuery ? 'ไม่พบสมาชิกที่ค้นหา' : 'ยังไม่มีสมาชิก' }}</p>
+        } @else {
+          <table class="member-table" data-testid="member-table">
+            <thead>
+              <tr>
+                <th>ชื่อ</th>
+                <th>เบอร์โทร</th>
+                <th>ระดับ</th>
+                <th>แต้ม</th>
+                <th>สถานะ</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of members(); track m.id) {
+                <tr data-testid="member-row" [class.selected]="selectedMember()?.id === m.id">
+                  <td>{{ m.name }}</td>
+                  <td>{{ m.phone }}</td>
+                  <td><span class="tier-badge tier-{{ m.tier }}">{{ tierLabel(m.tier) }}</span></td>
+                  <td class="points-cell">{{ m.points_balance | number }}</td>
+                  <td>
+                    <span class="status-badge" [class.active]="m.is_active">
+                      {{ m.is_active ? 'ใช้งาน' : 'ปิด' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button type="button" class="btn-link" (click)="selectMember(m)">ดูรายละเอียด</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+
+      <!-- รายละเอียดสมาชิก -->
+      @if (selectedMember(); as m) {
+        <div class="member-detail" data-testid="member-detail-panel">
+          <div class="detail-header">
+            <div class="detail-avatar tier-{{ m.tier }}">{{ m.name.slice(0, 2) }}</div>
+            <div>
+              <div class="detail-name">{{ m.name }}</div>
+              <div class="detail-phone">{{ m.phone }}</div>
+            </div>
+            <button type="button" class="close-btn" (click)="clearSelection()">×</button>
+          </div>
+
+          <div class="detail-stats">
+            <div class="stat-card">
+              <div class="stat-value">{{ m.points_balance | number }}</div>
+              <div class="stat-label">แต้มคงเหลือ</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">฿{{ m.total_spent | number }}</div>
+              <div class="stat-label">ยอดใช้จ่ายรวม</div>
+            </div>
+            <div class="stat-card">
+              <span class="tier-badge tier-{{ m.tier }}">{{ tierLabel(m.tier) }}</span>
+              <div class="stat-label">ระดับสมาชิก</div>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <button type="button" class="btn-outline" (click)="openEditModal(m)">แก้ไขข้อมูล</button>
+            @if (isAdmin()) {
+              <button type="button" class="btn-outline" (click)="openAdjustModal(m)">ปรับแต้ม</button>
+              <button
+                type="button"
+                class="btn-outline"
+                [class.danger]="m.is_active"
+                (click)="toggleActive(m)"
+              >{{ m.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }}</button>
+            }
+          </div>
+
+          <div class="history-section">
+            <h3 class="history-title">ประวัติแต้ม</h3>
+            @if (historyLoading()) {
+              <p class="state-text">กำลังโหลด...</p>
+            } @else if (memberHistory().length === 0) {
+              <p class="state-text">ยังไม่มีประวัติ</p>
+            } @else {
+              <div class="history-list" data-testid="member-history-list">
+                @for (h of memberHistory(); track h.id) {
+                  <div class="history-item">
+                    <div class="history-info">
+                      <span class="history-reason">{{ h.reason }}</span>
+                      <span class="history-date">{{ formatDate(h.created_at) }}</span>
+                    </div>
+                    <span class="history-change" [class.positive]="h.change > 0" [class.negative]="h.change < 0">
+                      {{ h.change > 0 ? '+' : '' }}{{ h.change | number }}
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ==================== Tab: ตั้งค่า ==================== -->
+  @if (activeTab() === 'settings') {
+    @if (!isAdmin()) {
+      <p class="state-text">หน้านี้สำหรับแอดมินเท่านั้น</p>
+    } @else if (settingsLoading()) {
+      <p class="state-text">กำลังโหลด...</p>
+    } @else {
+      <form class="settings-form" (ngSubmit)="saveSettings()">
+
+        <div class="settings-section">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">เปิดใช้งานระบบสมาชิก</div>
+              <div class="toggle-desc">เมื่อปิด ลูกค้าจะไม่สามารถสะสมหรือแลกแต้มได้</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" [(ngModel)]="draftEnabled" name="enabled">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 class="section-heading">กำหนดอัตราสะสมแต้ม</h2>
+          <div class="form-row">
+            <label>ใช้จ่ายทุก</label>
+            <div class="input-group">
+              <input type="number" min="1" [(ngModel)]="draftSpendPerPoint" name="spendPerPoint" required>
+              <span class="unit">บาท = 1 แต้ม</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>ยอดซื้อขั้นต่ำต่อบิล</label>
+            <div class="input-group">
+              <input type="number" min="0" [(ngModel)]="draftMinSpendToEarn" name="minSpend">
+              <span class="unit">บาท <span class="hint">(0 = ไม่มีขั้นต่ำ)</span></span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>แต้มหมดอายุใน</label>
+            <div class="input-group">
+              <input type="number" min="0" [(ngModel)]="draftPointsExpiryDays" name="expiryDays">
+              <span class="unit">วัน <span class="hint">(0 = ไม่มีวันหมดอายุ)</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 class="section-heading">การแลกแต้ม</h2>
+          <div class="form-row">
+            <label>ใช้</label>
+            <div class="input-group">
+              <input type="number" min="1" [(ngModel)]="draftPointsPerBaht" name="pointsPerBaht" required>
+              <span class="unit">แต้ม = ส่วนลด 1 บาท</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>แต้มขั้นต่ำที่แลกได้ต่อบิล</label>
+            <div class="input-group">
+              <input type="number" min="0" [(ngModel)]="draftMinPointsToRedeem" name="minRedeem">
+              <span class="unit">แต้ม</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>หักส่วนลดได้สูงสุด</label>
+            <div class="input-group">
+              <input type="number" min="0" max="100" [(ngModel)]="draftMaxDiscountPercent" name="maxDiscount">
+              <span class="unit">% ของยอดบิล</span>
+            </div>
+          </div>
+        </div>
+
+        @if (draftTierRules.length > 0) {
+          <div class="settings-section">
+            <h2 class="section-heading">ระดับสมาชิก</h2>
+            <table class="tier-table">
+              <thead>
+                <tr>
+                  <th>ระดับ</th>
+                  <th>ยอดสะสมขั้นต่ำ (บาท)</th>
+                  <th>คูณแต้ม (×)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (rule of draftTierRules; track rule.tier; let i = $index) {
+                  <tr>
+                    <td><span class="tier-badge tier-{{ rule.tier }}">{{ tierLabel(rule.tier) }}</span></td>
+                    <td><input type="number" min="0" [(ngModel)]="draftTierRules[i].min_total_spent" [name]="'tierSpent_' + i"></td>
+                    <td><input type="number" min="1" step="0.1" [(ngModel)]="draftTierRules[i].points_multiplier" [name]="'tierMult_' + i"></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="settingsSaving()" data-testid="settings-save-btn">
+            {{ settingsSaving() ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า' }}
+          </button>
+        </div>
+
+      </form>
+    }
+  }
+
+</div>
+
+<!-- ==================== Modal: เพิ่มสมาชิก ==================== -->
+@if (addModalOpen()) {
+  <div class="modal-overlay" (click)="closeAddModal()" data-testid="add-member-modal">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>เพิ่มสมาชิก</h3>
+        <button type="button" class="close-btn" (click)="closeAddModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">
+          ชื่อสมาชิก
+          <input type="text" placeholder="เช่น สมหญิง ใจดี" [(ngModel)]="newName">
+        </label>
+        <label class="field-label">
+          เบอร์โทรศัพท์
+          <input type="tel" placeholder="เช่น 0812345678" [(ngModel)]="newPhone" maxlength="10">
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" (click)="closeAddModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" [disabled]="addSaving()" (click)="saveMember()">
+          {{ addSaving() ? 'กำลังบันทึก...' : 'เพิ่มสมาชิก' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ==================== Modal: แก้ไขสมาชิก ==================== -->
+@if (editModalMember(); as m) {
+  <div class="modal-overlay" (click)="closeEditModal()" data-testid="edit-member-modal">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>แก้ไขสมาชิก</h3>
+        <button type="button" class="close-btn" (click)="closeEditModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">
+          ชื่อสมาชิก
+          <input type="text" [(ngModel)]="editName">
+        </label>
+        <label class="field-label">
+          เบอร์โทรศัพท์
+          <input type="tel" [(ngModel)]="editPhone" maxlength="10">
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" (click)="closeEditModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" [disabled]="editSaving()" (click)="saveEditMember()">
+          {{ editSaving() ? 'กำลังบันทึก...' : 'บันทึก' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ==================== Modal: ปรับแต้ม ==================== -->
+@if (adjustModalMember(); as m) {
+  <div class="modal-overlay" (click)="closeAdjustModal()" data-testid="adjust-points-modal">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>ปรับแต้ม — {{ m.name }}</h3>
+        <button type="button" class="close-btn" (click)="closeAdjustModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="adjust-current">แต้มปัจจุบัน: <strong>{{ m.points_balance | number }}</strong> แต้ม</p>
+        <label class="field-label">
+          จำนวนแต้ม (ใส่ - เพื่อหักแต้ม)
+          <input type="number" [(ngModel)]="adjustChange" placeholder="เช่น 50 หรือ -20">
+        </label>
+        <label class="field-label">
+          เหตุผล
+          <input type="text" [(ngModel)]="adjustReason" placeholder="เช่น โบนัสพิเศษ">
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" (click)="closeAdjustModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" [disabled]="adjustSaving()" (click)="saveAdjust()">
+          {{ adjustSaving() ? 'กำลังบันทึก...' : 'บันทึก' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

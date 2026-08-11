@@ -1,6 +1,13 @@
 <div class="pos-page">
   <section class="menu-panel">
     <div class="categories">
+      <button
+        class="category-btn"
+        [class.active]="selectedCategoryId() === null"
+        (click)="selectCategory(null)"
+      >
+        ทั้งหมด
+      </button>
       @for (cat of categories(); track cat.id) {
         <button
           class="category-btn"
@@ -15,8 +22,13 @@
     <div class="items-grid">
       @for (item of filteredMenuItems(); track item.id) {
         <button class="item-card" [disabled]="!item.is_available" (click)="addToCart(item)">
+          <span class="item-image-placeholder" aria-hidden="true"></span>
+          @if (categoryNameById().get(item.category_id); as catName) {
+            <span class="item-category-tag">{{ catName }}</span>
+          }
           <span class="item-name">{{ item.name }}</span>
           <span class="item-price">{{ item.price | number: '1.0-0' }} บาท</span>
+          <span class="item-add-btn" aria-hidden="true">+</span>
           @if (!item.is_available) {
             <span class="item-sold-out">หมด</span>
           }
@@ -28,72 +40,91 @@
   </section>
 
   <aside class="cart-panel">
-    <h2>บิลปัจจุบัน</h2>
+    <div class="cart-header">
+      <div>
+        <h2>ออเดอร์ปัจจุบัน</h2>
+        <p class="cart-meta">{{ cartQtyTotal() }} ชิ้นจาก {{ cart().length }} รายการ</p>
+      </div>
+      <span class="cart-status-badge" [class.has-items]="cart().length > 0">{{ cartStatusLabel() }}</span>
+    </div>
 
-    <div class="order-type">
-      <label>
-        <input type="radio" name="orderType" value="dine_in" [(ngModel)]="orderType" />
-        นั่งทาน
+    <div class="selector-row">
+      <label class="dropdown-field">
+        <span class="dropdown-label">ประเภทออเดอร์</span>
+        <select [(ngModel)]="orderType">
+          <option value="dine_in">นั่งทาน</option>
+          <option value="takeaway">กลับบ้าน</option>
+        </select>
       </label>
-      <label>
-        <input type="radio" name="orderType" value="takeaway" [(ngModel)]="orderType" />
-        ซื้อกลับ
+
+      @if (orderType === 'dine_in') {
+        <div class="dropdown-field">
+          <span class="dropdown-label">โต๊ะ</span>
+          <button type="button" class="table-trigger-btn" (click)="openTableModal()">
+            @if (selectedTableId) {
+              <span>{{ selectedTableLabel() }}@if (guestCount) { · {{ guestCount }} คน }</span>
+            } @else {
+              <span class="table-trigger-placeholder">-- เลือกโต๊ะ --</span>
+            }
+            <svg class="dropdown-caret" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+      }
+
+      <label class="dropdown-field order-note-field">
+        <span class="dropdown-label">คำสั่งพิเศษ / โน้ต</span>
+        <input type="text" placeholder="คำสั่งพิเศษ / โน้ต" [(ngModel)]="orderNote" />
       </label>
     </div>
 
-    @if (orderType === 'dine_in') {
-      <div class="table-select">
-        <label for="table">โต๊ะ</label>
-        <select id="table" name="table" [(ngModel)]="selectedTableId">
-          <option [ngValue]="null">-- เลือกโต๊ะ --</option>
-          @for (t of availableTables(); track t.id) {
-            <option [ngValue]="t.id">{{ t.name }} ({{ t.zone }})@if (t.capacity) { ({{ t.capacity }} ที่นั่ง) }</option>
-          }
-        </select>
-
-        <label for="guestCount">จำนวนคน (ถ้ามี)</label>
-        <input
-          id="guestCount"
-          name="guestCount"
-          type="number"
-          min="1"
-          placeholder="เช่น 4"
-          [(ngModel)]="guestCount"
-        />
-        @if (guestCountWarning(); as warning) {
-          <p class="guest-warning">{{ warning }}</p>
-        }
-      </div>
-    }
+    <button type="button" class="member-btn" (click)="showMemberInfo()">+ เพิ่มสมาชิก</button>
 
     <div class="cart-lines">
       @for (line of cart(); track line.lineId) {
         <div class="cart-line">
-          <div class="line-top">
+          <div class="line-row-top">
+            <span class="line-image-placeholder" aria-hidden="true"></span>
             <div class="line-info">
               <span class="line-name">
                 {{ line.menuItem.name }}
                 @if (line.menuItem.option_groups && line.menuItem.option_groups.length > 0) {
-                  <button type="button" class="edit-line-btn" (click)="editLine(line)">แก้ไข</button>
+                  <button type="button" class="edit-line-btn" (click)="editLine(line)" title="แก้ไขตัวเลือก">
+                    แก้ไข
+                  </button>
                 }
               </span>
+              <span class="line-unit-price">{{ lineUnitPrice(line) | number: '1.2-2' }} x {{ line.quantity }}</span>
               @if (line.selectedOptions.length > 0) {
                 <span class="line-options">{{ lineOptionsLabel(line) }}</span>
               }
+              @if (line.note) {
+                <span class="line-note-preview">โน้ต: {{ line.note }}</span>
+              }
             </div>
-            <div class="line-qty">
-              <button (click)="changeQuantity(line.lineId, -1)">-</button>
-              <span>{{ line.quantity }}</span>
-              <button (click)="changeQuantity(line.lineId, 1)">+</button>
-            </div>
-            <span class="line-total">{{ lineUnitPrice(line) * line.quantity | number: '1.0-0' }}</span>
+            <span class="line-total">{{ lineUnitPrice(line) * line.quantity | number: '1.2-2' }}</span>
           </div>
-          <input
-            type="text"
-            class="line-note-input"
-            placeholder="เพิ่มโน้ต เช่น ไม่ใส่น้ำแข็ง"
-            [(ngModel)]="line.note"
-          />
+          <div class="line-row-bottom">
+            <div class="line-qty">
+              <button type="button" (click)="changeQuantity(line.lineId, -1)">-</button>
+              <span>{{ line.quantity }}</span>
+              <button type="button" (click)="changeQuantity(line.lineId, 1)">+</button>
+            </div>
+            <button type="button" class="line-note-btn" (click)="openLineNoteDialog(line)">
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              โน้ต
+            </button>
+            <button
+              type="button"
+              class="line-trash-btn"
+              (click)="removeLine(line.lineId)"
+              title="ลบรายการนี้"
+              aria-label="ลบรายการนี้"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M9 3a1 1 0 0 0-1 1v1H4v2h16V5h-4V4a1 1 0 0 0-1-1H9zM6 8l1 12.5A1.5 1.5 0 0 0 8.5 22h7a1.5 1.5 0 0 0 1.5-1.5L18 8H6z"/></svg>
+            </button>
+          </div>
           @if (orderType === 'dine_in') {
             <label class="line-takeaway">
               <input
@@ -110,22 +141,146 @@
       }
     </div>
 
-    <div class="cart-total">
-      <span>รวมทั้งหมด</span>
-      <span>{{ cartTotal() | number: '1.0-0' }} บาท</span>
+    <div class="cart-summary">
+      <div class="summary-row">
+        <span>ยอดรวม</span>
+        <span>{{ cartTotal() | number: '1.2-2' }} บาท</span>
+      </div>
+      <button type="button" class="discount-link" (click)="showDiscountInfo()">+ เพิ่มส่วนลด</button>
+      <div class="summary-row muted">
+        <span>ภาษี 0%</span>
+        <span>รวมในราคาแล้ว</span>
+      </div>
+      <div class="summary-row total">
+        <span>ยอดที่ต้องชำระ</span>
+        <span>{{ cartTotal() | number: '1.2-2' }} บาท</span>
+      </div>
     </div>
 
-    @if (message()) {
-      <p class="message">{{ message() }}</p>
-    }
+    <div class="invoice-pay-row">
+      <button
+        type="button"
+        class="invoice-quote-btn"
+        (click)="openInvoiceQuote()"
+        [disabled]="cart().length === 0"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="3.5" width="14" height="17" rx="2" />
+          <path d="M8.5 8h7M8.5 12h7M8.5 16h4" />
+        </svg>
+        พิมพ์ใบแจ้งหนี้
+      </button>
+      <button
+        type="button"
+        class="pay-now-btn"
+        (click)="payNow()"
+        [disabled]="submitting() || cart().length === 0"
+      >
+        @if (submitting()) {
+          กำลังสร้างออเดอร์...
+        } @else {
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2.8" y="6" width="18.4" height="12" rx="2.4" />
+            <path d="M2.8 10h18.4" />
+          </svg>
+          ชำระเงิน
+        }
+      </button>
+    </div>
 
     <div class="cart-actions">
-      <button (click)="clearCart()" [disabled]="cart().length === 0">ล้างบิล</button>
-      <button class="primary" (click)="openReview()" [disabled]="submitting()">
+      <button type="button" class="icon-btn" (click)="holdCurrentCart()" title="พักบิล" aria-label="พักบิล">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 5h2v14H8zM14 5h2v14h-2z"/></svg>
+      </button>
+      <button type="button" class="icon-btn held-btn" (click)="openHeldCartsModal()" title="เรียกคืนบิลที่พักไว้" aria-label="เรียกคืนบิลที่พักไว้">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        @if (holdCount() > 0) {
+          <span class="held-badge">{{ holdCount() }}</span>
+        }
+      </button>
+      <button
+        type="button"
+        class="icon-btn"
+        (click)="clearCart()"
+        [disabled]="cart().length === 0"
+        title="ล้างบิล"
+        aria-label="ล้างบิล"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M9 3a1 1 0 0 0-1 1v1H4v2h16V5h-4V4a1 1 0 0 0-1-1H9zM6 8l1 12.5A1.5 1.5 0 0 0 8.5 22h7a1.5 1.5 0 0 0 1.5-1.5L18 8H6z"/></svg>
+      </button>
+      <button class="primary send-order-btn" (click)="openReview()" [disabled]="submitting()">
         {{ submitting() ? 'กำลังส่ง...' : 'ส่งออเดอร์' }}
       </button>
     </div>
   </aside>
+
+  @if (tableModalOpen()) {
+    <div class="modal-backdrop" (click)="closeTableModal()">
+      <div class="modal table-modal" (click)="$event.stopPropagation()">
+        <h3>เลือกโต๊ะ</h3>
+
+        @for (group of tablesByZone(); track group.zone) {
+          <div class="zone-group">
+            <div class="zone-title">{{ group.zone }}</div>
+            <div class="zone-tables">
+              @for (t of group.tables; track t.id) {
+                <button
+                  type="button"
+                  class="table-chip"
+                  [class.selected]="selectedTableId === t.id"
+                  [class.reserved]="t.status === 'reserved'"
+                  (click)="chooseTable(t.id)"
+                >
+                  {{ t.name }}
+                  @if (t.capacity) {
+                    <span class="table-chip-capacity">{{ t.capacity }} ที่นั่ง</span>
+                  }
+                  @if (reservationTagFor(t.id); as tag) {
+                    <span class="table-chip-reserved-tag">{{ tag }}</span>
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        } @empty {
+          <p class="empty">ไม่มีโต๊ะว่างในขณะนี้</p>
+        }
+
+        <div class="guest-count-box">
+          <label for="guestCount">จำนวนคน (ถ้ามี)</label>
+          @if (guestCountOptions().length > 0) {
+            <div class="guest-count-options">
+              @for (n of guestCountOptions(); track n) {
+                <button
+                  type="button"
+                  class="guest-count-chip"
+                  [class.selected]="guestCount === n"
+                  (click)="chooseGuestCount(n)"
+                >
+                  {{ n }}
+                </button>
+              }
+            </div>
+          }
+          <input
+            id="guestCount"
+            name="guestCount"
+            type="number"
+            min="1"
+            placeholder="เช่น 4"
+            [(ngModel)]="guestCount"
+          />
+          @if (guestCountWarning(); as warning) {
+            <p class="guest-warning">{{ warning }}</p>
+          }
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="primary" (click)="closeTableModal()">เสร็จสิ้น</button>
+        </div>
+      </div>
+    </div>
+  }
 
   @if (reviewOpen()) {
     <div class="modal-backdrop" (click)="closeReview()">
@@ -152,7 +307,7 @@
                     <span class="review-takeaway-tag">กลับบ้าน</span>
                   }
                 </span>
-                <span>{{ lineUnitPrice(line) * line.quantity | number: '1.0-0' }}</span>
+                <span>{{ lineUnitPrice(line) * line.quantity | number: '1.2-2' }}</span>
               </div>
               @if (line.selectedOptions.length > 0) {
                 <div class="review-line-sub">{{ lineOptionsLabel(line) }}</div>
@@ -166,12 +321,8 @@
 
         <div class="review-total">
           <span>รวมทั้งหมด</span>
-          <span>{{ cartTotal() | number: '1.0-0' }} บาท</span>
+          <span>{{ cartTotal() | number: '1.2-2' }} บาท</span>
         </div>
-
-        @if (message()) {
-          <p class="message">{{ message() }}</p>
-        }
 
         <div class="modal-actions">
           <button type="button" (click)="closeReview()">แก้ไขรายการ</button>
@@ -194,6 +345,150 @@
     </div>
   }
 
+  <!-- ==================== popup "พิมพ์ใบแจ้งหนี้ (QR)" — ดูยอด/สแกนจ่ายก่อนส่งออเดอร์จริง ==================== -->
+  @if (invoiceQuoteOpen()) {
+    <div class="modal-backdrop" (click)="closeInvoiceQuote()">
+      <div class="modal invoice-quote-modal" (click)="$event.stopPropagation()">
+        <div class="receipt-print-root invoice-quote-print">
+          <div class="r-center r-bold r-lg">{{ shopSettings()?.name || 'ใบแจ้งหนี้' }}</div>
+          @if (shopSettings()?.address) {
+            <div class="r-center r-address">{{ shopSettings()?.address }}</div>
+          }
+          @if (shopSettings()?.phone) {
+            <div class="r-center">โทร {{ shopSettings()?.phone }}</div>
+          }
+
+          <div class="r-center r-bold r-doc-title">ใบแจ้งหนี้ / INVOICE</div>
+          <div class="r-center"><span class="unpaid-badge">ยังไม่ชำระเงิน</span></div>
+          <div class="r-divider"></div>
+
+          @for (line of cart(); track line.lineId) {
+            <div class="r-row">
+              <span>{{ line.menuItem.name }} ×{{ line.quantity }}</span>
+              <span>฿{{ lineUnitPrice(line) * line.quantity | number: '1.2-3' }}</span>
+            </div>
+          }
+
+          <div class="r-divider"></div>
+          <div class="r-row">
+            <span>ราคารวม</span>
+            <span>฿{{ cartTotal() | number: '1.2-3' }}</span>
+          </div>
+          <div class="r-row">
+            <span>VAT 7%</span>
+            <span>฿{{ vatPortion(cartTotal()) | number: '1.2-3' }}</span>
+          </div>
+          <div class="r-row r-total">
+            <span>รวมทั้งสิ้น</span>
+            <span>฿{{ cartTotal() | number: '1.2-3' }}</span>
+          </div>
+
+          <div class="r-center r-scan-hint">สแกนเพื่อชำระเงิน ฿{{ cartTotal() | number: '1.2-3' }}</div>
+
+          <div class="invoice-qr-box">
+            @if (invoiceQrLoading()) {
+              <p class="hint-text">กำลังสร้าง QR...</p>
+            } @else if (invoiceQrDataUrl()) {
+              <img [src]="invoiceQrDataUrl()" alt="QR พร้อมเพย์" class="promptpay-qr-img" />
+              <p class="promptpay-caption">promptpay</p>
+            } @else {
+              <p class="hint-text">ร้านยังไม่ได้ตั้งค่าเลขพร้อมเพย์ (ตั้งค่าได้ที่หน้า "ตั้งค่าร้านค้า")</p>
+            }
+          </div>
+
+          <div class="r-divider"></div>
+          <div class="r-center r-footer">ขอบคุณที่ใช้บริการ</div>
+          <div class="r-center r-timestamp">{{ formatInvoiceTimestamp(invoiceQuotePrintedAt) }}</div>
+        </div>
+
+        <div class="modal-actions no-print">
+          <button type="button" (click)="closeInvoiceQuote()">ปิด</button>
+          <button type="button" class="primary" (click)="printInvoiceQuote()">พิมพ์</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== popup ชำระเงินทันที (เฉพาะซื้อกลับ) — สร้างออเดอร์แล้วเก็บเงินต่อในหน้านี้เลย ==================== -->
+  @if (payingOrder(); as payOrder) {
+    <div class="modal-backdrop">
+      <div class="modal pay-now-modal" (click)="$event.stopPropagation()">
+        <div class="receipt-print-root pay-now-print">
+          <div class="r-center r-bold r-lg">{{ shopSettings()?.name || 'ใบแจ้งหนี้' }}</div>
+          @if (shopSettings()?.address) {
+            <div class="r-center">{{ shopSettings()?.address }}</div>
+          }
+          @if (shopSettings()?.phone) {
+            <div class="r-center">โทร {{ shopSettings()?.phone }}</div>
+          }
+          <div class="r-divider"></div>
+
+          <h3>ชำระเงิน — บิล #{{ payOrder.id }}</h3>
+
+          @for (item of payOrder.items; track item.id) {
+            <div class="r-row">
+              <span>{{ item.quantity }}x {{ item.menu_item?.name }}</span>
+              <span>{{ item.unit_price * item.quantity | number: '1.2-2' }}</span>
+            </div>
+          }
+
+          <div class="r-divider"></div>
+          <div class="r-row r-total">
+            <span>ยอดที่ต้องชำระ</span>
+            <span>฿{{ payOrder.total_amount | number: '1.2-2' }}</span>
+          </div>
+
+          <!-- ใช้ PaymentPanelComponent ตัวเดียวกับหน้าคิดเงินหลัก/popup ที่หน้าคิวออเดอร์ — มีทั้งเลือกวิธีจ่าย
+               แป้นกดเงิน/QR และปุ่มยืนยันในตัว (คลาส no-print ใน template ของ panel เอง ทำให้ส่วนควบคุม
+               ไม่ติดไปตอนพิมพ์บิล เหลือแค่สรุปยอด/QR ให้ลูกค้าสแกนจ่ายจากกระดาษได้) -->
+          <app-payment-panel #payPanel [order]="payOrder" [shop]="shopSettings()" (paid)="onPaid($event)"></app-payment-panel>
+        </div>
+
+        <p class="hint-text no-print">
+          พิมพ์บิลให้ลูกค้าสแกนจ่ายได้ก่อน แล้วค่อยกดปุ่ม "ยืนยันชำระเงิน" ในกล่องด้านบน
+          หลังตรวจสอบว่าลูกค้าโอน/จ่ายเงินมาจริงแล้ว
+        </p>
+
+        <div class="modal-actions no-print">
+          <button type="button" (click)="closePaymentModal()" [disabled]="payPanel.processing()">
+            ปิด (ยังไม่จ่ายตอนนี้)
+          </button>
+          <button type="button" (click)="printPaymentBill()">พิมพ์บิล</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== popup สรุปผลหลังจ่ายเงินสำเร็จ ==================== -->
+  @if (paidTakeawayOrder(); as paidOrder) {
+    <div class="modal-backdrop no-print">
+      <div class="modal takeaway-result">
+        <h3>ชำระเงินเรียบร้อย</h3>
+        <p class="takeaway-hint">แจ้งลูกค้าไว้รอเรียกตามหมายเลขนี้</p>
+        <div class="takeaway-order-number">#{{ paidOrder.id }}</div>
+        <p class="hint-text">ยอดสุทธิ {{ paidOrder.total_amount | number: '1.2-2' }} บาท</p>
+        @if (paidOrder.payment?.method === 'cash') {
+          <p class="hint-text">เงินทอน {{ paidOrder.payment?.change_amount | number: '1.2-2' }} บาท</p>
+        }
+        <div class="modal-actions">
+          <button type="button" (click)="openPaidReceipt()">พิมพ์ใบเสร็จ</button>
+          <button
+            type="button"
+            [disabled]="downloadingPaidInvoice()"
+            (click)="downloadPaidInvoicePdf()"
+          >
+            {{ downloadingPaidInvoice() ? 'กำลังสร้าง PDF...' : 'ดาวน์โหลด PDF' }}
+          </button>
+          <button type="button" class="primary" (click)="closePaidTakeawayResult()">เสร็จสิ้น</button>
+        </div>
+      </div>
+    </div>
+
+    @if (paidReceiptOpen()) {
+      <app-receipt [order]="paidOrder" [shop]="shopSettings()" (close)="closePaidReceipt()"></app-receipt>
+    }
+  }
+
   @if (optionDialogItem(); as item) {
     <div class="modal-backdrop" (click)="closeOptionsDialog()">
       <div class="modal" (click)="$event.stopPropagation()">
@@ -211,22 +506,27 @@
               @if (group.is_required) {
                 <span class="required-tag">*ต้องเลือก</span>
               }
+              @if (group.selection_type === 'multi') {
+                <span class="multi-hint">เลือกได้หลายอย่าง{{ group.max_select ? ' (สูงสุด ' + group.max_select + ')' : '' }}</span>
+              }
             </div>
             <div class="option-choices">
               @for (choice of group.choices; track choice.id) {
-                <button
-                  type="button"
-                  class="choice-btn"
-                  [class.selected]="optionDialogSelections[group.id] === choice.id"
-                  (click)="selectOption(group.id, choice.id)"
-                >
-                  {{ choice.name }}
-                  @if (choice.price_delta) {
-                    <span class="choice-price">
-                      {{ choice.price_delta > 0 ? '+' : '' }}{{ choice.price_delta | number: '1.0-0' }}
-                    </span>
-                  }
-                </button>
+                @if (choice.is_enabled !== false) {
+                  <button
+                    type="button"
+                    class="choice-btn"
+                    [class.selected]="isChoiceSelected(group.id, choice.id)"
+                    (click)="selectOption(group, choice.id)"
+                  >
+                    {{ choice.name }}
+                    @if (choice.price_delta) {
+                      <span class="choice-price">
+                        {{ choice.price_delta > 0 ? '+' : '' }}{{ choice.price_delta | number: '1.2-2' }}
+                      </span>
+                    }
+                  </button>
+                }
               }
             </div>
           </div>
@@ -239,6 +539,67 @@
           <button type="button" class="primary" (click)="confirmOptions()">
             {{ editingLineId() !== null ? 'บันทึกการแก้ไข' : 'เพิ่มลงบิล' }}
           </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (noteDialogLineId() !== null) {
+    <div class="modal-backdrop" (click)="closeLineNoteDialog()">
+      <div class="modal note-dialog" (click)="$event.stopPropagation()">
+        <h3>โน้ตรายการ</h3>
+        <textarea
+          rows="3"
+          placeholder="เช่น ไม่ใส่น้ำแข็ง, เผ็ดน้อย"
+          [(ngModel)]="noteDialogDraft"
+        ></textarea>
+        <div class="modal-actions">
+          <button type="button" (click)="closeLineNoteDialog()">ยกเลิก</button>
+          <button type="button" class="primary" (click)="saveLineNoteDialog()">บันทึกโน้ต</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (heldCartsModalOpen()) {
+    <div class="modal-backdrop" (click)="closeHeldCartsModal()">
+      <div class="modal held-carts-modal" (click)="$event.stopPropagation()">
+        <h3>บิลที่พักไว้</h3>
+
+        @if (heldCarts().length > 0) {
+          <ul class="held-carts-list">
+            @for (held of heldCarts(); track held.id) {
+              <li class="held-cart-row">
+                <div class="held-cart-info">
+                  <strong>{{ heldCartLabel(held) }}</strong>
+                  <span>{{ heldCartQtyTotal(held) }} ชิ้น · {{ heldCartTotal(held) | number: '1.2-2' }} บาท</span>
+                </div>
+                <div class="held-cart-actions">
+                  <button type="button" class="primary" (click)="requestResumeHeldCart(held)">เรียกคืน</button>
+                  <button type="button" class="danger-link" (click)="deleteHeldCart(held)">ลบ</button>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty">ยังไม่มีบิลที่พักไว้</p>
+        }
+
+        <div class="modal-actions">
+          <button type="button" (click)="closeHeldCartsModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (pendingResumeHeldCart(); as held) {
+    <div class="modal-backdrop" (click)="cancelResumeOverwrite()">
+      <div class="modal modal-s" (click)="$event.stopPropagation()">
+        <h3>แทนที่บิลปัจจุบัน?</h3>
+        <p>บิลปัจจุบันยังมีรายการอยู่ เรียกคืนบิล "{{ heldCartLabel(held) }}" จะแทนที่รายการปัจจุบันทั้งหมด</p>
+        <div class="modal-actions">
+          <button type="button" (click)="cancelResumeOverwrite()">ยกเลิก</button>
+          <button type="button" class="primary" (click)="confirmResumeOverwrite()">ยืนยันเรียกคืน</button>
         </div>
       </div>
     </div>

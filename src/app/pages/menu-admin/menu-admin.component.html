@@ -1,483 +1,614 @@
 <div class="menu-admin-page">
-  <h1>จัดการเมนู</h1>
-
-  @if (message()) {
-    <p class="message">{{ message() }}</p>
+  @if (view().kind === 'none') {
+    <h1>เมนูและแคตตาล็อก</h1>
+    <p class="page-subtitle">จัดการหมวดหมู่ เมนู รูปอาหาร ตัวเลือกเสริม และต้นทุนสินค้า</p>
   }
 
-  <section class="panel">
-    <h2>หมวดหมู่</h2>
-    <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white mb-3" (click)="openAddCategoryModal()">
-      + เพิ่มหมวดหมู่
-    </button>
-    <ul class="list">
-      @for (cat of categories(); track cat.id) {
-        <li>
-          <span class="flex items-center gap-2 flex-wrap">
-            {{ cat.name }}
-            @if (editingStationCategoryId() === cat.id) {
-              <select class="text-xs border border-gray-300 rounded-lg px-2 py-1" [(ngModel)]="editStationValue">
-                @for (station of stationOptions(); track station) {
-                  <option [ngValue]="station">{{ station }}</option>
-                }
-                <option [ngValue]="customStationValue">+ เพิ่มสถานที่ใหม่...</option>
-              </select>
-              @if (editStationValue === customStationValue) {
-                <input
-                  type="text"
-                  placeholder="ชื่อสถานที่ใหม่"
-                  class="text-xs border border-gray-300 rounded-lg px-2 py-1 w-28"
-                  [(ngModel)]="editStationCustomValue"
-                />
-              }
-              <button
-                type="button"
-                class="text-xs text-white bg-accent rounded-full px-2 py-1"
-                (click)="saveStationEdit(cat)"
-              >
-                บันทึก
-              </button>
-              <button
-                type="button"
-                class="text-xs border border-gray-300 rounded-full px-2 py-1 bg-white"
-                (click)="closeStationEditor()"
-              >
-                ยกเลิก
-              </button>
-            } @else {
-              <button
-                type="button"
-                class="text-xs rounded-full px-2 py-0.5"
-                [class.text-navy]="cat.station"
-                [class.bg-skytint]="cat.station"
-                [class.text-gray-400]="!cat.station"
-                [class.border]="!cat.station"
-                [class.border-gray-300]="!cat.station"
-                (click)="openStationEditor(cat)"
-              >
-                {{ cat.station || '+ ตั้งสถานที่ทำ' }}
-              </button>
-            }
-          </span>
-          <span class="flex gap-2">
-            <button
-              type="button"
-              class="text-xs border border-navy/30 text-navy rounded-full px-3 py-1 hover:bg-skytint/40"
-              (click)="toggleTemplateManager(cat)"
-            >
-              {{ templateManagerCategoryId() === cat.id ? 'ปิด' : 'ค่าเริ่มต้นตัวเลือก' }}
-            </button>
-            <button
-              class="danger"
-              [disabled]="categoryHasItems(cat.id)"
-              [title]="categoryHasItems(cat.id) ? 'มีเมนูอยู่ในหมวดนี้ ย้ายหรือลบเมนูออกก่อน' : ''"
-              (click)="deleteCategory(cat.id)"
-            >
-              ลบ
-            </button>
-          </span>
-        </li>
-
-        @if (templateManagerCategoryId() === cat.id) {
-          <li class="template-row">
-            <div class="w-full bg-gray-50 rounded-lg p-3 my-1 flex flex-col gap-3">
-              <h4 class="text-sm font-semibold text-gray-700">
-                ค่าเริ่มต้นตัวเลือกของหมวด "{{ cat.name }}" (ตั้งครั้งเดียว นำไปใช้กับเมนูในหมวดนี้ได้หลายอย่าง)
-              </h4>
-
-              @if (templateStatus(); as status) {
-                <p
-                  class="text-sm rounded-lg px-3 py-2"
-                  [class.bg-green-50]="status.type === 'success'"
-                  [class.text-green-700]="status.type === 'success'"
-                  [class.bg-red-50]="status.type === 'error'"
-                  [class.text-red-700]="status.type === 'error'"
-                >
-                  {{ status.type === 'success' ? '✓ ' : '' }}{{ status.text }}
-                </p>
-              }
-
-              @if (categoryTemplates().length > 0) {
-                <ul class="flex flex-col gap-2">
-                  @for (tpl of categoryTemplates(); track tpl.id) {
-                    <li class="bg-white border border-gray-200 rounded-lg p-2">
-                      <div class="flex items-center gap-2">
-                        <strong class="text-sm">{{ tpl.name }}</strong>
-                        <span class="text-xs text-gray-500 border border-gray-300 rounded-full px-2">
-                          {{ tpl.is_required ? 'ต้องเลือก' : 'ไม่บังคับ' }}
-                        </span>
-                        <button
-                          type="button"
-                          class="ml-auto text-xs text-red-600 border border-red-300 rounded-full px-2 py-0.5 hover:bg-red-50"
-                          (click)="deleteTemplate(cat.id, tpl.id)"
-                        >
-                          ลบ
-                        </button>
-                      </div>
-                      <div class="flex flex-wrap gap-1 mt-1">
-                        @for (ch of tpl.choices; track ch.id) {
-                          <span class="text-xs bg-gray-100 rounded-full px-2 py-0.5">
-                            {{ ch.name }}
-                            @if (ch.price_delta) {
-                              ({{ ch.price_delta > 0 ? '+' : '' }}{{ ch.price_delta | number: '1.0-0' }})
-                            }
-                          </span>
-                        }
-                      </div>
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <p class="text-sm text-gray-400">ยังไม่มีค่าเริ่มต้นในหมวดนี้</p>
-              }
-
-              <div class="border-t border-gray-200 pt-3 flex flex-col gap-2">
-                <p class="text-xs text-gray-500 font-medium">+ สร้างค่าเริ่มต้นใหม่</p>
-                <div class="flex flex-wrap gap-2 items-center">
-                  <input
-                    type="text"
-                    placeholder="ชื่อ เช่น ความหวาน"
-                    class="border border-gray-300 rounded-lg px-2 py-1 text-sm"
-                    [(ngModel)]="newTemplateName"
-                  />
-                  <label class="flex items-center gap-1 text-sm text-gray-600">
-                    <input type="checkbox" [(ngModel)]="newTemplateRequired" />
-                    บังคับให้เลือก
-                  </label>
-                </div>
-
-                @for (choice of draftTemplateChoices; track $index) {
-                  <div class="flex flex-wrap gap-2 items-center">
-                    <input
-                      type="text"
-                      placeholder="ชื่อตัวเลือก เช่น หวานปกติ"
-                      class="border border-gray-300 rounded-lg px-2 py-1 text-sm"
-                      [(ngModel)]="choice.name"
-                    />
-                    <input
-                      type="number"
-                      placeholder="+/- ราคา"
-                      class="border border-gray-300 rounded-lg px-2 py-1 text-sm w-24"
-                      [(ngModel)]="choice.price_delta"
-                    />
-                    @if (draftTemplateChoices.length > 1) {
-                      <button
-                        type="button"
-                        class="text-xs text-red-600 border border-red-300 rounded-full px-2 py-0.5"
-                        (click)="removeDraftTemplateChoiceRow($index)"
-                      >
-                        ลบแถว
-                      </button>
-                    }
-                  </div>
-                }
-
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
-                    (click)="addDraftTemplateChoiceRow()"
-                  >
-                    + เพิ่มแถวตัวเลือก
-                  </button>
-                  <button
-                    type="button"
-                    class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white"
-                    (click)="saveTemplate(cat.id)"
-                  >
-                    บันทึกค่าเริ่มต้น
-                  </button>
-                </div>
-              </div>
-            </div>
-          </li>
-        }
-      } @empty {
-        <li class="empty">ยังไม่มีหมวดหมู่</li>
-      }
-    </ul>
-  </section>
-
-  <section class="panel">
-    <h2>เมนู</h2>
-    <button type="button" class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white mb-3" (click)="openAddItemModal()">
-      + เพิ่มเมนู
-    </button>
-
-    <table class="menu-table">
-      <thead>
-        <tr>
-          <th>ชื่อ</th>
-          <th>หมวดหมู่</th>
-          <th>ราคา</th>
-          <th>สถานะ</th>
-          <th></th>
-          <th></th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (item of menuItems(); track item.id) {
-          <tr>
-            <td>{{ item.name }}</td>
-            <td>{{ categoryName(item.category_id) }}</td>
-            <td>{{ item.price | number: '1.0-0' }}</td>
-            <td>
-              <button (click)="toggleAvailable(item)">
-                {{ item.is_available ? 'พร้อมขาย' : 'หมด' }}
-              </button>
-            </td>
-            <td>
-              <button (click)="openOptionModal(item)">
-                ตัวเลือก
-                @if (item.option_groups && item.option_groups.length > 0) {
-                  ({{ item.option_groups.length }})
-                }
-              </button>
-            </td>
-            <td>
-              <button (click)="openEditItemModal(item)">แก้ไข</button>
-            </td>
-            <td>
-              <button class="danger" (click)="confirmDeleteItem(item)">ลบ</button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="7" class="empty">ยังไม่มีเมนู</td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </section>
-
-  @if (addCategoryModalOpen()) {
-    <div class="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4" (click)="closeAddCategoryModal()">
-      <div class="bg-white rounded-xl p-6 w-[420px] max-w-full" (click)="$event.stopPropagation()">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold">เพิ่มหมวดหมู่</h3>
-          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeAddCategoryModal()">
-            ×
-          </button>
-        </div>
-
-        <div class="flex flex-col gap-3 mb-5">
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            ชื่อหมวดหมู่
-            <input
-              type="text"
-              placeholder="เช่น กาแฟ, ของหวาน"
-              class="border border-gray-300 rounded-lg px-3 py-2"
-              [(ngModel)]="newCategoryName"
-            />
-          </label>
-
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            สถานที่ทำ (เผื่ออนาคตแยกจอทำงานตามสถานี)
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newCategoryStation">
-              @for (station of stationOptions(); track station) {
-                <option [ngValue]="station">{{ station }}</option>
-              }
-              <option [ngValue]="customStationValue">+ เพิ่มสถานที่ใหม่...</option>
-            </select>
-          </label>
-
-          @if (newCategoryStation === customStationValue) {
-            <input
-              type="text"
-              placeholder="ชื่อสถานที่ใหม่ เช่น เบเกอรี่"
-              class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              [(ngModel)]="newCategoryStationCustom"
-            />
-          }
-        </div>
-
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
-            (click)="closeAddCategoryModal()"
-          >
-            ยกเลิก
-          </button>
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
-            (click)="addCategory()"
-          >
-            เพิ่มหมวดหมู่
-          </button>
-        </div>
-      </div>
+  @if (view().kind === 'none') {
+    <div class="tab-bar">
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'items'" (click)="switchTab('items')">
+        เมนูสินค้า
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'categories'" (click)="switchTab('categories')">
+        หมวดหมู่
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'options'" (click)="switchTab('options')">
+        ตัวเลือกเสริม
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'archived'" (click)="switchTab('archived')">
+        เมนูที่เก็บถาวร
+      </button>
     </div>
-  }
 
-  @if (addItemModalOpen()) {
-    <div class="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4" (click)="closeAddItemModal()">
-      <div class="bg-white rounded-xl p-6 w-[520px] max-w-full max-h-[85vh] overflow-y-auto" (click)="$event.stopPropagation()">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold">เพิ่มเมนู</h3>
-          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeAddItemModal()">
-            ×
-          </button>
-        </div>
+    <!-- ==================== แท็บ: เมนูสินค้า ==================== -->
+    @if (activeTab() === 'items') {
+      <section class="panel">
+        <div class="items-toolbar">
+          <input
+            type="search"
+            class="search-input"
+            placeholder="ค้นหาเมนู..."
+            [ngModel]="itemsSearchQuery()"
+            (ngModelChange)="itemsSearchQuery.set($event)"
+          />
 
-        <div class="flex flex-col gap-3 mb-5">
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            ชื่อเมนู
-            <input type="text" class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newItemName" />
-          </label>
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            ราคา
-            <input type="number" min="0" class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newItemPrice" />
-          </label>
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            หมวดหมู่
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newItemCategoryId">
-              @for (cat of categories(); track cat.id) {
-                <option [ngValue]="cat.id">{{ cat.name }}</option>
-              }
-            </select>
-          </label>
-        </div>
+          <select class="category-filter" [ngModel]="itemsFilterCategoryId()" (ngModelChange)="itemsFilterCategoryId.set($event)">
+            <option [ngValue]="null">ทุกหมวดหมู่</option>
+            @for (cat of categories(); track cat.id) {
+              <option [ngValue]="cat.id">{{ cat.name }}</option>
+            }
+          </select>
 
-        <div class="border-t border-gray-200 pt-3 mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-xs font-semibold text-gray-500">ตัวเลือกเมนู (ถ้ามี เช่น ความหวาน, ไซส์)</p>
-            <button
-              type="button"
-              class="text-xs border border-gray-300 rounded-full px-2 py-1 bg-white"
-              (click)="addDraftOptionGroup()"
-            >
-              + เพิ่มกลุ่มตัวเลือก
-            </button>
+          <div class="toolbar-actions">
+            <button type="button" class="ghost-btn" (click)="showNotImplemented('นำเข้า Excel')">นำเข้า Excel</button>
+            <button type="button" class="primary-btn" (click)="openAddItemForm()">+ เพิ่มเมนู/สินค้าใหม่</button>
           </div>
+        </div>
 
-          @for (group of newItemOptionGroups; track $index; let groupIndex = $index) {
-            <div class="border border-gray-200 rounded-lg p-3 mb-2">
-              <div class="flex items-center gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder="ชื่อกลุ่ม เช่น ความหวาน"
-                  class="border border-gray-300 rounded-lg px-2 py-1 text-sm flex-1 min-w-0"
-                  [(ngModel)]="group.name"
-                />
-                <label class="flex items-center gap-1 text-xs text-gray-600 shrink-0">
-                  <input type="checkbox" [(ngModel)]="group.is_required" />
-                  บังคับให้เลือก
-                </label>
+        <div class="items-card-grid">
+          @for (item of filteredMenuItemsForAdmin(); track item.id) {
+            <div class="item-admin-card" (click)="openEditItemForm(item)" role="button" tabindex="0">
+              <div class="item-admin-media">
+                @if (item.image_path) {
+                  <img class="item-image-photo" [src]="mediaUrl(item.image_path)" [alt]="item.name" />
+                } @else {
+                  <span class="item-image-placeholder" aria-hidden="true"></span>
+                }
                 <button
                   type="button"
-                  class="shrink-0 text-xs text-red-600 border border-red-300 rounded-full px-2 py-0.5 hover:bg-red-50"
-                  (click)="removeDraftOptionGroup(groupIndex)"
+                  class="item-admin-archive-btn"
+                  title="เก็บเมนูนี้"
+                  (click)="$event.stopPropagation(); archiveItem(item)"
                 >
-                  ลบกลุ่ม
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="5" rx="1.2" />
+                    <path d="M5 9v9a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18V9" />
+                    <path d="M10 13h4" />
+                  </svg>
                 </button>
               </div>
-
-              @for (choice of group.choices; track $index; let choiceIndex = $index) {
-                <div class="flex items-center gap-2 mb-1">
-                  <input
-                    type="text"
-                    placeholder="ชื่อตัวเลือกย่อย เช่น หวานน้อย"
-                    class="border border-gray-300 rounded-lg px-2 py-1 text-sm flex-1 min-w-0"
-                    [(ngModel)]="choice.name"
-                  />
-                  <input
-                    type="number"
-                    placeholder="+/- ราคา"
-                    class="border border-gray-300 rounded-lg px-2 py-1 text-sm w-20 shrink-0"
-                    [(ngModel)]="choice.price_delta"
-                  />
-                  @if (group.choices.length > 1) {
-                    <button
-                      type="button"
-                      class="shrink-0 text-xs text-red-600 border border-red-300 rounded-full px-2 py-0.5"
-                      (click)="removeDraftOptionGroupChoice(groupIndex, choiceIndex)"
-                    >
-                      ลบ
-                    </button>
-                  }
+              <div class="item-admin-body">
+                <div class="item-admin-title-row">
+                  <strong>{{ item.name }}</strong>
+                  <span>{{ item.price | number: '1.2-2' }} บาท</span>
                 </div>
-              }
-
-              <button
-                type="button"
-                class="text-xs border border-gray-300 rounded-lg px-2 py-1 bg-white mt-1"
-                (click)="addDraftOptionGroupChoice(groupIndex)"
-              >
-                + เพิ่มตัวเลือกย่อย
-              </button>
+                <p class="item-admin-category">{{ categoryName(item.category_id) }}</p>
+                <div class="item-admin-badges">
+                  <button
+                    type="button"
+                    class="status-pill status-pill-btn"
+                    [class.available]="item.is_available"
+                    (click)="$event.stopPropagation(); toggleAvailable(item)"
+                  >
+                    {{ item.is_available ? 'เปิดขาย' : 'ปิดขาย' }}
+                  </button>
+                  @if (item.is_featured) { <span class="tag-pill featured">เมนูแนะนำ</span> }
+                  @if (item.is_bestseller) { <span class="tag-pill bestseller">ขายดี</span> }
+                </div>
+              </div>
             </div>
+          } @empty {
+            <p class="empty">ยังไม่มีเมนูในหมวดนี้</p>
           }
         </div>
+      </section>
+    }
 
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
-            (click)="closeAddItemModal()"
-          >
-            ยกเลิก
-          </button>
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
-            (click)="addItem()"
-          >
-            เพิ่มเมนู
-          </button>
+    <!-- ==================== แท็บ: หมวดหมู่ ==================== -->
+    @if (activeTab() === 'categories') {
+      <section class="panel">
+        <div class="items-toolbar">
+          <h2>หมวดหมู่เมนู</h2>
+          <button type="button" class="primary-btn" (click)="openAddCategoryForm()">+ เพิ่มหมวดหมู่</button>
         </div>
+
+        <ul class="category-list">
+          @for (cat of categories(); track cat.id; let i = $index; let count = $count) {
+            <li class="category-row">
+              <span class="category-color-dot" [style.background]="cat.color || 'var(--color-border)'" aria-hidden="true"></span>
+              <div class="category-row-main">
+                <strong>{{ cat.name }}</strong>
+                <span class="category-row-meta">{{ itemCountLabel(cat.id) }}</span>
+              </div>
+              <span class="status-pill" [class.available]="cat.is_enabled">
+                {{ cat.is_enabled ? 'เปิดใช้' : 'ปิดใช้' }}
+              </span>
+              <span class="reorder-btns">
+                <button type="button" [disabled]="i === 0" (click)="moveCategory(cat, -1)" title="เลื่อนขึ้น">▲</button>
+                <button type="button" [disabled]="i === count - 1" (click)="moveCategory(cat, 1)" title="เลื่อนลง">▼</button>
+              </span>
+              <button type="button" class="icon-text-btn" (click)="openEditCategoryForm(cat)" title="แก้ไข">แก้ไข</button>
+              <button type="button" class="icon-text-btn" (click)="archiveCategory(cat)" title="เก็บ">เก็บ</button>
+            </li>
+          } @empty {
+            <li class="empty">ยังไม่มีหมวดหมู่</li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- ==================== แท็บ: ตัวเลือกเสริม (เทมเพลตกลุ่มตัวเลือก รวมทุกหมวดหมู่) ==================== -->
+    @if (activeTab() === 'options') {
+      <section class="panel">
+        <div class="items-toolbar">
+          <div>
+            <h2>ตัวเลือกเสริม</h2>
+            <p class="text-sm text-gray-500">
+              เทมเพลตกลุ่มตัวเลือกที่ตั้งไว้ล่วงหน้า นำไปใช้ซ้ำกับเมนูไหนก็ได้ผ่านหน้าแก้ไขเมนู
+            </p>
+          </div>
+          <div class="toolbar-actions">
+            <button type="button" class="ghost-btn" (click)="showNotImplemented('นำเข้าจาก Excel')">นำเข้าจาก Excel</button>
+            <button type="button" class="primary-btn" (click)="openAddTemplateForm()">+ เพิ่มกลุ่ม</button>
+          </div>
+        </div>
+
+        @if (categories().length === 0) {
+          <p class="empty">ยังไม่มีหมวดหมู่ ไปสร้างหมวดหมู่ก่อนที่แท็บ "หมวดหมู่"</p>
+        } @else {
+          <div class="items-card-grid">
+            @for (tpl of allTemplates(); track tpl.id) {
+              <div class="item-admin-card template-card">
+                <div class="item-admin-body">
+                  <div class="item-admin-title-row">
+                    <strong>{{ tpl.name }}</strong>
+                    <span class="status-pill" [class.available]="tpl.is_enabled">
+                      {{ tpl.is_enabled ? 'เปิดใช้' : 'ปิดใช้' }}
+                    </span>
+                  </div>
+                  <p class="item-admin-category">{{ templateSelectionLabel(tpl) }}</p>
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    @for (ch of tpl.choices; track ch.id) {
+                      <span class="text-xs bg-gray-100 rounded-full px-2 py-0.5">
+                        {{ ch.name }}
+                        @if (ch.price_delta) {
+                          ({{ ch.price_delta > 0 ? '+' : '' }}{{ ch.price_delta | number: '1.2-2' }})
+                        }
+                      </span>
+                    }
+                  </div>
+                </div>
+                <div class="item-admin-actions">
+                  <button type="button" (click)="openEditTemplateForm(tpl)">แก้ไข</button>
+                  <button type="button" (click)="confirmDeleteTemplate(tpl)">ลบ</button>
+                </div>
+              </div>
+            } @empty {
+              <p class="empty">ยังไม่มีตัวเลือกเสริม</p>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ==================== แท็บ: เมนูที่เก็บถาวร ==================== -->
+    @if (activeTab() === 'archived') {
+      <section class="panel">
+        <h2>หมวดหมู่ที่เก็บถาวร</h2>
+        <ul class="category-list mb-6">
+          @for (cat of archivedCategories(); track cat.id) {
+            <li class="category-row">
+              <span class="category-color-dot" [style.background]="cat.color || 'var(--color-border)'" aria-hidden="true"></span>
+              <div class="category-row-main">
+                <strong>{{ cat.name }}</strong>
+              </div>
+              <button type="button" class="icon-text-btn" (click)="restoreCategory(cat)">กู้คืน</button>
+            </li>
+          } @empty {
+            <li class="empty">ไม่มีหมวดหมู่ที่เก็บถาวร</li>
+          }
+        </ul>
+
+        <h2>เมนูที่เก็บถาวร</h2>
+        <ul class="category-list">
+          @for (item of archivedMenuItems(); track item.id) {
+            <li class="category-row">
+              @if (item.image_path) {
+                <img class="archived-thumb" [src]="mediaUrl(item.image_path)" [alt]="item.name" />
+              } @else {
+                <span class="archived-thumb-placeholder" aria-hidden="true"></span>
+              }
+              <div class="category-row-main">
+                <strong>{{ item.name }}</strong>
+                <span class="category-row-meta">{{ categoryName(item.category_id) }} · {{ item.price | number: '1.2-2' }} บาท</span>
+              </div>
+              <button type="button" class="icon-text-btn" (click)="restoreItem(item)">กู้คืน</button>
+              <button type="button" class="icon-text-btn danger" (click)="confirmDeleteItem(item)">ลบถาวร</button>
+            </li>
+          } @empty {
+            <li class="empty">ไม่มีเมนูที่เก็บถาวร</li>
+          }
+        </ul>
+      </section>
+    }
+  }
+
+  <!-- ==================== full-page: เพิ่ม/แก้ไขหมวดหมู่ ==================== -->
+  @if (view().kind === 'category-form') {
+    <div class="page-form-header">
+      <h1>{{ $any(view()).editingId !== null ? 'แก้ไขหมวดหมู่' : 'เพิ่มหมวดหมู่' }}</h1>
+      <div class="page-form-header-actions">
+        <button type="button" class="ghost-btn" (click)="closeCategoryForm()">ยกเลิก</button>
+        <button type="button" class="primary-btn" (click)="saveCategoryForm()">บันทึก</button>
       </div>
+    </div>
+
+    <div class="form-card" style="max-width: 640px;">
+      <label class="form-field">
+        <span>ชื่อหมวดหมู่ *</span>
+        <input type="text" [(ngModel)]="categoryFormName" />
+      </label>
+
+      <label class="form-field">
+        <span>รายละเอียด</span>
+        <textarea rows="3" [(ngModel)]="categoryFormDescription"></textarea>
+      </label>
+
+      <div class="form-row-2col">
+        <label class="form-field">
+          <span>สีหมวดหมู่</span>
+          <div class="color-swatch-row">
+            @for (swatch of categoryColorSwatches; track swatch) {
+              <button
+                type="button"
+                class="color-swatch"
+                [style.background]="swatch"
+                [class.selected]="categoryFormColor === swatch"
+                (click)="categoryFormColor = swatch"
+              ></button>
+            }
+            <input type="text" class="color-hex-input" [(ngModel)]="categoryFormColor" />
+          </div>
+        </label>
+
+        <label class="form-field">
+          <span>ลำดับแสดงผล</span>
+          <input type="number" [(ngModel)]="categoryFormSortOrder" />
+        </label>
+      </div>
+
+      <label class="checkbox-field">
+        <input type="checkbox" [(ngModel)]="categoryFormEnabled" />
+        เปิดใช้หมวดหมู่นี้ใน POS
+      </label>
     </div>
   }
 
-  @if (editItemModalItem(); as item) {
-    <div class="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4" (click)="closeEditItemModal()">
-      <div class="bg-white rounded-xl p-6 w-[420px] max-w-full" (click)="$event.stopPropagation()">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold">แก้ไขเมนู "{{ item.name }}"</h3>
-          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeEditItemModal()">
-            ×
-          </button>
-        </div>
+  <!-- ==================== full-page: เพิ่ม/แก้ไขเมนู ==================== -->
+  @if (view().kind === 'item-form') {
+    <div class="page-form-header">
+      <h1>{{ itemFormEditingItem() ? 'แก้ไขเมนู/สินค้า' : 'เพิ่มเมนู/สินค้าใหม่' }}</h1>
+      <div class="page-form-header-actions">
+        <button type="button" class="ghost-btn" (click)="closeItemForm()">ยกเลิก</button>
+        <button type="button" class="primary-btn" (click)="saveItemForm()">บันทึกเมนู</button>
+      </div>
+    </div>
 
-        <div class="flex flex-col gap-3 mb-5">
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            ชื่อเมนู
-            <input type="text" class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editItemName" />
-          </label>
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            ราคา
-            <input type="number" min="0" class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editItemPrice" />
-          </label>
-          <label class="flex flex-col gap-1 text-sm text-gray-600">
-            หมวดหมู่
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editItemCategoryId">
+    <div class="item-form-grid">
+      <div class="form-card">
+        <h3 class="form-card-title">ข้อมูลเมนู</h3>
+
+        <label class="form-field">
+          <span>ชื่อเมนู *</span>
+          <input type="text" [(ngModel)]="itemFormName" />
+        </label>
+
+        <div class="form-row-2col">
+          <label class="form-field">
+            <span>หมวดหมู่ *</span>
+            <select [(ngModel)]="itemFormCategoryId">
               @for (cat of categories(); track cat.id) {
                 <option [ngValue]="cat.id">{{ cat.name }}</option>
               }
             </select>
           </label>
+          <label class="form-field">
+            <span>ราคาขาย *</span>
+            <input type="number" min="0" [(ngModel)]="itemFormPrice" />
+          </label>
         </div>
 
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
-            (click)="closeEditItemModal()"
-          >
-            ยกเลิก
-          </button>
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
-            (click)="confirmSaveEditItem()"
-          >
-            บันทึกการแก้ไข
-          </button>
+        <div class="status-checkbox-grid">
+          <label class="checkbox-field boxed">
+            <input type="checkbox" [(ngModel)]="itemFormFeatured" />
+            เมนูแนะนำ
+          </label>
+          <label class="checkbox-field boxed">
+            <input type="checkbox" [(ngModel)]="itemFormBestseller" />
+            ขายดี
+          </label>
+          <label class="checkbox-field boxed">
+            <input type="checkbox" [(ngModel)]="itemFormTrackStock" />
+            ติดตามสต็อก
+            <span class="hint-tag">(ยังไม่มีระบบคลังสินค้ารองรับ — แค่ติดป้ายไว้ก่อน)</span>
+          </label>
         </div>
       </div>
+
+      <div class="form-card-col">
+        <div class="form-card">
+          <h3 class="form-card-title">รูปอาหาร</h3>
+          <div class="image-upload-box">
+            @if (itemFormImagePreviewUrl()) {
+              <img [src]="itemFormImagePreviewUrl()" alt="รูปเมนู" />
+            } @else {
+              <span class="item-image-placeholder" aria-hidden="true"></span>
+            }
+          </div>
+          <div class="image-upload-actions">
+            <label class="ghost-btn file-input-label">
+              {{ itemFormUploadingImage() ? 'กำลังอัปโหลด...' : 'อัปโหลด' }}
+              <input type="file" accept="image/*" (change)="onItemImageSelected($event)" hidden />
+            </label>
+            @if (itemFormImagePreviewUrl()) {
+              <button type="button" class="icon-text-btn danger" (click)="removeItemImage()">ลบรูป</button>
+            }
+          </div>
+        </div>
+
+        @if (itemFormEditingItem(); as editingItem) {
+          <div class="form-card">
+            <div class="form-card-title-row">
+              <h3 class="form-card-title">ตัวเลือกเสริมที่ผูกกับเมนู</h3>
+              <button type="button" class="ghost-btn small" (click)="openAddOptionGroupForm(editingItem)">+ เพิ่มกลุ่มตัวเลือก</button>
+            </div>
+
+            @if (editingItem.option_groups && editingItem.option_groups.length > 0) {
+              <ul class="linked-option-groups">
+                @for (group of editingItem.option_groups; track group.id) {
+                  <li>
+                    <div class="linked-group-row">
+                      <strong>{{ group.name }}</strong>
+                      <span class="text-xs text-gray-500">
+                        ({{ group.selection_type === 'multi' ? 'เลือกได้หลายอย่าง' : 'เลือกได้อย่างเดียว' }}{{ group.is_required ? ' · บังคับเลือก' : '' }})
+                      </span>
+                      <button type="button" class="link-btn" (click)="openEditOptionGroupForm(editingItem, group)">แก้ไข</button>
+                      <button type="button" class="link-btn danger" (click)="deleteGroup(editingItem, group.id)">ลบ</button>
+                    </div>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="text-sm text-gray-400">ยังไม่มีกลุ่มตัวเลือกเสริม</p>
+            }
+
+            @if (itemFormCategoryTemplates().length > 0) {
+              <div class="border-t border-gray-200 pt-2 mt-2">
+                <p class="text-xs text-gray-500 mb-1">หรือใช้ค่าเริ่มต้นจากหมวดหมู่นี้:</p>
+                @for (tpl of itemFormCategoryTemplates(); track tpl.id) {
+                  <button type="button" class="template-chip" (click)="applyTemplateToCurrentItem(tpl)">{{ tpl.name }}</button>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="form-card">
+            <p class="text-sm text-gray-400">บันทึกเมนูนี้ก่อน แล้วค่อยกลับมาเพิ่มตัวเลือกเสริมได้</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ==================== full-page: เพิ่ม/แก้ไขกลุ่มตัวเลือก ==================== -->
+  @if (view().kind === 'option-group-form') {
+    <div class="page-form-header">
+      <h1>{{ $any(view()).editingGroupId !== null ? 'แก้ไขกลุ่มตัวเลือก' : 'เพิ่มกลุ่มตัวเลือก' }}</h1>
+      <div class="page-form-header-actions">
+        <button type="button" class="ghost-btn" (click)="closeOptionGroupForm()">ยกเลิก</button>
+        <button type="button" class="primary-btn" (click)="saveOptionGroupForm()">บันทึก</button>
+      </div>
+    </div>
+
+    <div class="form-card" style="max-width: 760px;">
+      <label class="form-field">
+        <span>ชื่อกลุ่ม *</span>
+        <input type="text" [(ngModel)]="groupFormName" />
+      </label>
+
+      <label class="form-field">
+        <span>รายละเอียด</span>
+        <input type="text" [(ngModel)]="groupFormDescription" />
+      </label>
+
+      <div class="form-row-4col">
+        <label class="form-field">
+          <span>ประเภท</span>
+          <select [(ngModel)]="groupFormSelectionType">
+            <option value="single">เลือกได้อย่างเดียว</option>
+            <option value="multi">เลือกได้หลายอย่าง</option>
+          </select>
+        </label>
+        <label class="form-field">
+          <span>ขั้นต่ำ</span>
+          <input type="number" min="0" [(ngModel)]="groupFormMinSelect" />
+        </label>
+        <label class="form-field">
+          <span>สูงสุด</span>
+          <input type="number" min="1" [(ngModel)]="groupFormMaxSelect" />
+        </label>
+        <label class="form-field">
+          <span>ลำดับ</span>
+          <input type="number" [(ngModel)]="groupFormSortOrder" />
+        </label>
+      </div>
+
+      <div class="checkbox-row">
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="groupFormRequired" />
+          บังคับเลือก
+        </label>
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="groupFormEnabled" />
+          เปิดใช้
+        </label>
+      </div>
+    </div>
+
+    <div class="form-card" style="max-width: 760px;">
+      <div class="form-card-title-row">
+        <h3 class="form-card-title">ตัวเลือก</h3>
+        <button type="button" class="ghost-btn small" (click)="addGroupFormChoiceRow()">+ เพิ่มตัวเลือก</button>
+      </div>
+
+      <div class="quick-template-row">
+        <span class="quick-template-label">เทมเพลตด่วน (Templates):</span>
+        @for (tpl of quickOptionTemplates; track tpl.key) {
+          <button
+            type="button"
+            class="quick-template-chip"
+            [class.selected]="groupFormActiveTemplateKey === tpl.key"
+            (click)="applyQuickOptionTemplate(tpl)"
+          >
+            {{ tpl.label }}
+          </button>
+        }
+      </div>
+
+      <table class="choices-table">
+        <thead>
+          <tr>
+            <th>ชื่อตัวเลือก *</th>
+            <th>ราคาบวกเพิ่ม (บาท)</th>
+            <th>เริ่มต้น</th>
+            <th>เปิดใช้งาน</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (choice of groupFormChoices; track $index; let i = $index) {
+            <tr>
+              <td><input type="text" [(ngModel)]="choice.name" placeholder="เช่น หวานน้อย" /></td>
+              <td><input type="number" [(ngModel)]="choice.price_delta" placeholder="ราคา" /></td>
+              <td class="center">
+                <input type="checkbox" [checked]="choice.is_default" (change)="toggleGroupFormChoiceDefault(i)" />
+              </td>
+              <td class="center">
+                <input type="checkbox" [checked]="choice.is_enabled" (change)="toggleGroupFormChoiceEnabled(i)" />
+              </td>
+              <td class="center">
+                @if (groupFormChoices.length > 1) {
+                  <button type="button" class="remove-row-btn" (click)="removeGroupFormChoiceRow(i)" aria-label="ลบแถว">×</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- ==================== full-page: เพิ่ม/แก้ไขตัวเลือกเสริม (เทมเพลตกลุ่มตัวเลือก) ==================== -->
+  <!-- โครงหน้าเดียวกับ "เพิ่มหมวดหมู่"/"เพิ่มเมนูสินค้า" — page-form-header + form-card เต็มจอ ไม่ใช่ popup -->
+  @if (view().kind === 'template-form') {
+    <div class="page-form-header">
+      <h1>{{ templateFormEditingId !== null ? 'แก้ไขตัวเลือกเสริม' : 'เพิ่มตัวเลือกเสริม' }}</h1>
+      <div class="page-form-header-actions">
+        <button type="button" class="ghost-btn" (click)="closeTemplateForm()">ยกเลิก</button>
+        <button type="button" class="primary-btn" (click)="saveTemplateForm()">บันทึก</button>
+      </div>
+    </div>
+
+    <div class="form-card" style="max-width: 760px;">
+      <label class="form-field">
+        <span>ชื่อกลุ่ม *</span>
+        <input type="text" [(ngModel)]="templateFormName" />
+      </label>
+
+      <label class="form-field">
+        <span>รายละเอียด</span>
+        <input type="text" [(ngModel)]="templateFormDescription" />
+      </label>
+
+      <label class="form-field">
+        <span>หมวดหมู่ *</span>
+        <select [(ngModel)]="templateFormCategoryId">
+          @for (cat of categories(); track cat.id) {
+            <option [ngValue]="cat.id">{{ cat.name }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="form-row-4col">
+        <label class="form-field">
+          <span>ประเภท</span>
+          <select [(ngModel)]="templateFormSelectionType">
+            <option value="single">เลือกได้อย่างเดียว</option>
+            <option value="multi">เลือกได้หลายอย่าง</option>
+          </select>
+        </label>
+        <label class="form-field">
+          <span>ขั้นต่ำ</span>
+          <input type="number" min="0" [(ngModel)]="templateFormMinSelect" />
+        </label>
+        <label class="form-field">
+          <span>สูงสุด</span>
+          <input type="number" min="1" [(ngModel)]="templateFormMaxSelect" />
+        </label>
+      </div>
+
+      <div class="checkbox-row">
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="templateFormRequired" />
+          บังคับเลือก
+        </label>
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="templateFormEnabled" />
+          เปิดใช้
+        </label>
+      </div>
+    </div>
+
+    <div class="form-card" style="max-width: 760px;">
+      <div class="form-card-title-row">
+        <h3 class="form-card-title">ตัวเลือก</h3>
+        <button type="button" class="ghost-btn small" (click)="addTemplateFormChoiceRow()">+ เพิ่มตัวเลือก</button>
+      </div>
+
+      <div class="quick-template-row">
+        <span class="quick-template-label">เทมเพลตด่วน (Templates):</span>
+        @for (tpl of quickOptionTemplates; track tpl.key) {
+          <button
+            type="button"
+            class="quick-template-chip"
+            [class.selected]="templateFormActiveTemplateKey === tpl.key"
+            (click)="applyQuickOptionTemplateToTemplateForm(tpl)"
+          >
+            {{ tpl.label }}
+          </button>
+        }
+      </div>
+
+      <table class="choices-table">
+        <thead>
+          <tr>
+            <th>ชื่อตัวเลือก *</th>
+            <th>ราคาบวกเพิ่ม (บาท)</th>
+            <th>เริ่มต้น</th>
+            <th>เปิดใช้งาน</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (choice of templateFormChoices; track $index; let i = $index) {
+            <tr>
+              <td><input type="text" [(ngModel)]="choice.name" placeholder="เช่น หวานน้อย" /></td>
+              <td><input type="number" [(ngModel)]="choice.price_delta" placeholder="ราคา" /></td>
+              <td class="center">
+                <input type="checkbox" [checked]="choice.is_default" (change)="toggleTemplateFormChoiceDefault(i)" />
+              </td>
+              <td class="center">
+                <input type="checkbox" [checked]="choice.is_enabled" (change)="toggleTemplateFormChoiceEnabled(i)" />
+              </td>
+              <td class="center">
+                @if (templateFormChoices.length > 1) {
+                  <button type="button" class="remove-row-btn" (click)="removeTemplateFormChoiceRow(i)" aria-label="ลบแถว">×</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
     </div>
   }
 
@@ -486,213 +617,13 @@
       <div class="bg-white rounded-xl p-6 w-[380px] max-w-full" (click)="$event.stopPropagation()">
         <p class="text-sm text-gray-800 mb-5">{{ dialog.message }}</p>
         <div class="flex gap-2">
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
-            (click)="closeConfirm()"
-          >
+          <button type="button" class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm" (click)="closeConfirm()">
             ยกเลิก
           </button>
-          <button
-            type="button"
-            class="flex-1 py-2.5 rounded-lg border-none bg-red-600 text-white text-sm"
-            (click)="runConfirm()"
-          >
+          <button type="button" class="flex-1 py-2.5 rounded-lg border-none bg-red-600 text-white text-sm" (click)="runConfirm()">
             {{ dialog.confirmLabel }}
           </button>
         </div>
-      </div>
-    </div>
-  }
-
-  @if (optionModalItem(); as item) {
-    <div class="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4" (click)="closeOptionModal()">
-      <div
-        class="bg-white rounded-xl p-6 w-[520px] max-w-full max-h-[85vh] overflow-y-auto"
-        (click)="$event.stopPropagation()"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold">ตัวเลือกของ "{{ item.name }}"</h3>
-          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeOptionModal()">
-            ×
-          </button>
-        </div>
-
-        @if (optionSaveStatus(); as status) {
-          <p
-            class="text-sm rounded-lg px-3 py-2 mb-3"
-            [class.bg-green-50]="status.type === 'success'"
-            [class.text-green-700]="status.type === 'success'"
-            [class.bg-red-50]="status.type === 'error'"
-            [class.text-red-700]="status.type === 'error'"
-          >
-            {{ status.type === 'success' ? '✓ ' : '' }}{{ status.text }}
-          </p>
-        }
-
-        @if (item.option_groups && item.option_groups.length > 0) {
-          <div class="flex flex-col gap-3 mb-4">
-            @for (group of item.option_groups; track group.id) {
-              <div class="border border-gray-200 rounded-lg p-3">
-                <div class="flex items-center gap-2 mb-2">
-                  <strong class="text-sm">{{ group.name }}</strong>
-                  <label class="flex items-center gap-1 text-xs text-gray-600 border border-gray-300 rounded-full pl-2 pr-2.5 py-0.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      [checked]="group.is_required"
-                      (change)="toggleGroupRequired(group)"
-                    />
-                    บังคับให้เลือก
-                  </label>
-                  <button
-                    type="button"
-                    class="ml-auto text-xs text-red-600 border border-red-300 rounded-full px-2 py-0.5 hover:bg-red-50"
-                    (click)="deleteGroup(group.id)"
-                  >
-                    ลบกลุ่ม
-                  </button>
-                </div>
-
-                <ul class="flex flex-col gap-1 mb-2">
-                  @for (choice of group.choices; track choice.id) {
-                    <li class="flex items-center gap-2 text-sm border-b border-dashed border-gray-200 py-1">
-                      <span>{{ choice.name }}</span>
-                      @if (choice.price_delta) {
-                        <span class="text-xs text-gray-500">
-                          {{ choice.price_delta > 0 ? '+' : '' }}{{ choice.price_delta | number: '1.0-0' }}
-                        </span>
-                      }
-                      <button
-                        type="button"
-                        class="ml-auto text-xs text-red-600 border border-red-300 rounded-full px-2 py-0.5 hover:bg-red-50"
-                        (click)="deleteChoice(choice.id)"
-                      >
-                        ลบ
-                      </button>
-                    </li>
-                  } @empty {
-                    <li class="text-sm text-gray-400">ยังไม่มีตัวเลือกย่อย</li>
-                  }
-                </ul>
-
-                <div class="flex flex-wrap gap-2 items-center">
-                  <input
-                    type="text"
-                    placeholder="เพิ่มตัวเลือกย่อย เช่น หวานน้อย"
-                    class="border border-gray-300 rounded-lg px-2 py-1 text-sm flex-1 min-w-[120px]"
-                    [(ngModel)]="choiceDraft(group.id).name"
-                  />
-                  <input
-                    type="number"
-                    placeholder="+/- ราคา"
-                    class="border border-gray-300 rounded-lg px-2 py-1 text-sm w-20"
-                    [(ngModel)]="choiceDraft(group.id).price_delta"
-                  />
-                  <button
-                    type="button"
-                    class="text-sm border border-gray-300 rounded-lg px-3 py-1 bg-white"
-                    (click)="addChoiceToGroup(group)"
-                  >
-                    เพิ่ม
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
-        }
-
-        @if (optionModalTemplates().length > 0) {
-          <div class="border-t border-gray-200 pt-3 mb-4">
-            <p class="text-xs font-semibold text-gray-500 mb-2">+ ใช้ค่าเริ่มต้นจากหมวดหมู่</p>
-            <div class="flex flex-col gap-2">
-              @for (tpl of optionModalTemplates(); track tpl.id) {
-                <div class="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-                  <div class="text-sm min-w-0">
-                    <strong>{{ tpl.name }}</strong>
-                    <span class="text-xs text-gray-500">
-                      ({{ tpl.is_required ? 'ต้องเลือก' : 'ไม่บังคับ' }} ·
-                      {{ tpl.choices.length }} ตัวเลือกย่อย)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    class="ml-auto shrink-0 text-sm rounded-lg px-3 py-1 bg-accent text-white"
-                    (click)="applyTemplate(item, tpl)"
-                  >
-                    ใช้
-                  </button>
-                </div>
-              }
-            </div>
-          </div>
-        }
-
-        <div class="border-t border-gray-200 pt-3">
-          <p class="text-xs font-semibold text-gray-500 mb-2">+ สร้างตัวเลือกใหม่เฉพาะเมนูนี้</p>
-          <div class="flex flex-wrap gap-2 items-center mb-2">
-            <input
-              type="text"
-              placeholder="ชื่อกลุ่ม เช่น ความหวาน"
-              class="border border-gray-300 rounded-lg px-2 py-1 text-sm"
-              [(ngModel)]="newGroupName"
-            />
-            <label class="flex items-center gap-1 text-sm text-gray-600">
-              <input type="checkbox" [(ngModel)]="newGroupRequired" />
-              บังคับให้เลือก
-            </label>
-          </div>
-
-          @for (choice of draftChoices; track $index) {
-            <div class="flex flex-wrap gap-2 items-center mb-2">
-              <input
-                type="text"
-                placeholder="ชื่อตัวเลือก เช่น หวานปกติ"
-                class="border border-gray-300 rounded-lg px-2 py-1 text-sm"
-                [(ngModel)]="choice.name"
-              />
-              <input
-                type="number"
-                placeholder="+/- ราคา"
-                class="border border-gray-300 rounded-lg px-2 py-1 text-sm w-24"
-                [(ngModel)]="choice.price_delta"
-              />
-              @if (draftChoices.length > 1) {
-                <button
-                  type="button"
-                  class="text-xs text-red-600 border border-red-300 rounded-full px-2 py-0.5"
-                  (click)="removeDraftChoiceRow($index)"
-                >
-                  ลบแถว
-                </button>
-              }
-            </div>
-          }
-
-          <div class="flex gap-2 mb-4">
-            <button
-              type="button"
-              class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
-              (click)="addDraftChoiceRow()"
-            >
-              + เพิ่มแถวตัวเลือก
-            </button>
-            <button
-              type="button"
-              class="text-sm rounded-lg px-3 py-1.5 bg-accent text-white"
-              (click)="saveOptionGroup(item)"
-            >
-              บันทึกกลุ่มตัวเลือก
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="w-full py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
-          (click)="closeOptionModal()"
-        >
-          ปิด
-        </button>
       </div>
     </div>
   }

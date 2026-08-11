@@ -1,52 +1,272 @@
 <div class="reports-page">
-  <h1>รายงานยอดขายรายวัน</h1>
+  <!-- ==================== หัวหน้า + ปุ่มสลับช่วงเวลา (ดีไซน์ 7a — รวม 2 แท็บเดิมเป็นหน้าเดียว) ==================== -->
+  <div class="reports-header">
+    <div>
+      <h1>รายงานยอดขาย</h1>
+      <p class="reports-subtitle">{{ headerDateLabel() }}</p>
+    </div>
 
-  <div class="row">
-    <label>
-      วันที่
-      <input type="date" [(ngModel)]="selectedDate" (change)="load()" />
-    </label>
-    <button (click)="load()">โหลดรายงาน</button>
+    <div class="period-toggle">
+      <button type="button" [class.active]="periodMode() === 'today'" (click)="setPeriod('today')">วันนี้</button>
+      <button type="button" [class.active]="periodMode() === '7d'" (click)="setPeriod('7d')">7 วัน</button>
+      <button type="button" [class.active]="periodMode() === '30d'" (click)="setPeriod('30d')">30 วัน</button>
+      <button type="button" [class.active]="periodMode() === 'custom'" (click)="setPeriod('custom')">เลือกวันเอง</button>
+    </div>
   </div>
 
-  @if (loading()) {
-    <p>กำลังโหลด...</p>
-  } @else {
-    @if (report(); as r) {
-      <div class="summary">
-        <div class="stat">
-          <span class="label">จำนวนบิล</span>
-          <span class="value">{{ r.order_count }}</span>
+  @if (periodMode() === 'custom') {
+    <div class="custom-date-row">
+      <input type="date" [(ngModel)]="selectedDate" (change)="onCustomDateChange()" />
+    </div>
+  }
+
+  <!-- ==================== มุมมองรายวัน (วันนี้ / เลือกวันเอง) ==================== -->
+  @if (periodMode() === 'today' || periodMode() === 'custom') {
+    @if (loading()) {
+      <div class="state-box">
+        <div class="skeleton-cards">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
         </div>
-        <div class="stat">
-          <span class="label">ยอดขายรวม</span>
-          <span class="value">{{ r.total_sales | number: '1.0-0' }} บาท</span>
+      </div>
+    }
+    @if (!loading() && loadError()) {
+      <div class="state-box state-box--error">
+        <div class="state-icon state-icon--error">!</div>
+        <div class="state-title state-title--error">โหลดรายงานไม่สำเร็จ</div>
+        <div class="state-desc state-desc--error">ลองใหม่อีกครั้ง หรือตรวจสอบการเชื่อมต่อ</div>
+        <button type="button" class="state-btn state-btn--error" (click)="load()">ลองอีกครั้ง</button>
+      </div>
+    }
+    @if (!loading() && !loadError() && report(); as r) {
+      <div class="summary-cards">
+        <div class="summary-card summary-card--accent">
+          <span class="summary-label">ยอดขายรวม</span>
+          <span class="summary-value">{{ r.total_sales | number: '1.2-2' }}</span>
+          <span class="summary-sub">บาท</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">จำนวนบิล</span>
+          <span class="summary-value">{{ r.order_count }}</span>
+          <span class="summary-sub">นั่งทาน {{ dineInCount() }} · ซื้อกลับ {{ takeawayCount() }}</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">เฉลี่ยต่อบิล</span>
+          <span class="summary-value">{{ avgPerBill() | number: '1.2-2' }}</span>
+          <span class="summary-sub">สูงสุด {{ maxBill() | number: '1.2-2' }} บาท</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">เงินสด / โอน</span>
+          <span class="summary-value">{{ cashCount() }} / {{ transferCount() }}</span>
+          <span class="summary-sub" [class.warn]="noSlipCount() > 0">ยังไม่แนบสลิป {{ noSlipCount() }} บิล</span>
         </div>
       </div>
 
-      <h2>เมนูขายดี</h2>
-      <table class="top-items">
-        <thead>
-          <tr>
-            <th>เมนู</th>
-            <th>จำนวน</th>
-            <th>ยอดขาย</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of r.top_items; track item.name) {
-            <tr>
-              <td>{{ item.name }}</td>
-              <td>{{ item.quantity }}</td>
-              <td>{{ item.total | number: '1.0-0' }}</td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="3" class="empty">ยังไม่มีข้อมูลขายในวันนี้</td>
-            </tr>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3 class="chart-card-title">ยอดขายตามช่วงเวลา</h3>
+          <div class="chart-canvas-wrap">
+            <canvas #hourlyCanvas></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-card-title">เมนูขายดี 5 อันดับ</h3>
+          @if (topItemsRanked().length > 0) {
+            <div class="rank-list">
+              @for (item of topItemsRanked(); track item.name; let i = $index) {
+                <div class="rank-row">
+                  <span class="rank-idx">{{ i + 1 }}</span>
+                  <span class="rank-name">{{ item.name }}</span>
+                  <span class="rank-bar-track"><span class="rank-bar-fill" [style.width.%]="item.percent"></span></span>
+                  <span class="rank-qty">{{ item.quantity }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="empty">ยังไม่มีข้อมูลขาย</p>
           }
-        </tbody>
-      </table>
+        </div>
+      </div>
+
+      <!-- ==================== ตารางบิล — ตัวกรองแบบชิป + คลิกทั้งแถวเปิดใบเสร็จ/แนบสลิป ==================== -->
+      <div class="bills-card">
+        <div class="bills-toolbar">
+          <span class="bills-toolbar-title">บิลที่ปิด{{ periodMode() === 'today' ? 'วันนี้' : '' }}</span>
+          <button type="button" class="filter-chip filter-chip--solid" [class.active]="billFilter() === 'all'" (click)="setBillFilter('all')">
+            ทั้งหมด {{ r.orders.length }}
+          </button>
+          <button type="button" class="filter-chip" [class.active]="billFilter() === 'cash'" (click)="setBillFilter('cash')">
+            เงินสด {{ cashCount() }}
+          </button>
+          <button type="button" class="filter-chip" [class.active]="billFilter() === 'transfer'" (click)="setBillFilter('transfer')">
+            โอนเงิน {{ transferCount() }}
+          </button>
+          @if (noSlipCount() > 0) {
+            <button type="button" class="filter-chip filter-chip--warn" [class.active]="billFilter() === 'no_slip'" (click)="setBillFilter('no_slip')">
+              ยังไม่มีสลิป {{ noSlipCount() }}
+            </button>
+          }
+          <button type="button" class="export-btn" (click)="exportBillsCsv()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 4v11M7 11l5 5 5-5M4.5 19.5h15" />
+            </svg>
+            ส่งออก CSV
+          </button>
+        </div>
+
+        <div class="bills-table">
+          <div class="bills-row bills-row--head">
+            <span>บิล</span>
+            <span>ประเภท</span>
+            <span class="align-right">ยอด</span>
+            <span>เปิดบิลโดย</span>
+            <span>ปิดบิลโดย</span>
+            <span>เวลาปิด</span>
+            <span>ชำระโดย</span>
+          </div>
+
+          @for (o of filteredOrders(); track o.order_id) {
+            <div class="bills-row" (click)="onBillRowClick(o)" role="button" tabindex="0">
+              <span class="bill-id">#{{ o.order_id }}</span>
+              <span>
+                {{ o.order_type === 'dine_in' ? 'นั่งทาน' : 'ซื้อกลับ' }}
+                @if (o.table_name) {
+                  · {{ o.table_name }}
+                }
+              </span>
+              <span class="align-right bill-amount">{{ o.total_amount | number: '1.2-2' }}</span>
+              <span>{{ o.created_by_name || '-' }}</span>
+              <span>{{ o.paid_by_name || '-' }}</span>
+              <span class="bill-time">{{ o.paid_at | date: 'HH:mm' }}</span>
+              <span class="bill-payment">
+                {{ o.payment_method === 'transfer' ? 'โอนเงิน' : 'เงินสด' }}
+                @if (o.payment_method === 'transfer') {
+                  <span class="slip-status" [class.has-slip]="!!o.slip_image_path">
+                    {{ o.slip_image_path ? 'มีสลิป' : 'ไม่มีสลิป' }}
+                  </span>
+                }
+              </span>
+            </div>
+          } @empty {
+            <p class="empty">ยังไม่มีบิลที่ตรงกับตัวกรองนี้</p>
+          }
+        </div>
+      </div>
     }
+  }
+
+  <!-- ==================== มุมมองแนวโน้ม (7 วัน / 30 วัน) ==================== -->
+  @if (periodMode() === '7d' || periodMode() === '30d') {
+    @if (trendLoading()) {
+      <div class="state-box">
+        <div class="skeleton-cards">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+      </div>
+    } @else if (trendError()) {
+      <div class="state-box state-box--error">
+        <div class="state-icon state-icon--error">!</div>
+        <div class="state-title state-title--error">โหลดรายงานไม่สำเร็จ</div>
+        <div class="state-desc state-desc--error">ลองใหม่อีกครั้ง หรือตรวจสอบการเชื่อมต่อ</div>
+        <button type="button" class="state-btn state-btn--error" (click)="setPeriod(periodMode() === '7d' ? '7d' : '30d')">ลองอีกครั้ง</button>
+      </div>
+    } @else if (trendReport()) {
+      <div class="summary-cards">
+        <div class="summary-card summary-card--accent">
+          <span class="summary-label">ยอดขายรวม</span>
+          <span class="summary-value">{{ trendTotal() | number: '1.2-2' }}</span>
+          <span class="summary-sub">บาท</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">จำนวนบิล</span>
+          <span class="summary-value">{{ trendOrderCount() }}</span>
+          <span class="summary-sub">รวมทั้งช่วง</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">เฉลี่ยต่อบิล</span>
+          <span class="summary-value">{{ trendAvgPerBill() | number: '1.2-2' }}</span>
+          <span class="summary-sub">บาท</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">วันขายดีที่สุด</span>
+          <span class="summary-value summary-value--sm">{{ trendBestDayLabel() }}</span>
+          <span class="summary-sub">{{ trendBestDay()?.total_sales | number: '1.2-2' }} บาท</span>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3 class="chart-card-title">แนวโน้มยอดขายรายวัน</h3>
+        <div class="chart-canvas-wrap chart-canvas-wrap--wide">
+          <canvas #trendCanvas></canvas>
+        </div>
+      </div>
+    }
+  }
+
+  @if (slipModalOrder(); as o) {
+    <div class="fixed inset-0 bg-[rgba(36,42,61,0.42)] flex items-center justify-center z-[100] p-4" (click)="closeSlipModal()">
+      <div class="bg-white rounded-xl p-6 w-[min(640px,92vw)] max-h-[88vh] overflow-y-auto" (click)="$event.stopPropagation()">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">แนบสลิป/ref — บิล #{{ o.order_id }}</h3>
+          <button type="button" class="text-gray-400 hover:text-gray-700 text-xl leading-none" (click)="closeSlipModal()">
+            ×
+          </button>
+        </div>
+
+
+        @if (slipUrl(o); as url) {
+          <div class="mb-3">
+            <p class="text-xs text-gray-500 mb-1">สลิปปัจจุบัน</p>
+            <img [src]="url" class="max-h-64 rounded-lg border border-gray-200" alt="สลิปโอนเงิน" />
+          </div>
+        }
+
+        <div class="flex flex-col gap-3 mb-5">
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            เลขอ้างอิงการโอน
+            <input
+              type="text"
+              placeholder="เช่น เลขท้ายอ้างอิงจากแอปธนาคาร"
+              class="border border-gray-300 rounded-lg px-3 py-2"
+              [(ngModel)]="slipModalRef"
+            />
+          </label>
+          <label class="flex flex-col gap-1 text-sm text-gray-600">
+            {{ slipUrl(o) ? 'เปลี่ยนรูปสลิป' : 'แนบรูปสลิป' }}
+            <input type="file" accept="image/*" (change)="onSlipModalFileSelected($event)" />
+          </label>
+          @if (slipModalFileName) {
+            <p class="text-xs text-gray-400">เลือกไฟล์แล้ว: {{ slipModalFileName }}</p>
+          }
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-sm"
+            (click)="closeSlipModal()"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-lg border-none bg-accent text-white text-sm"
+            [disabled]="slipModalSaving()"
+            (click)="saveSlipModal()"
+          >
+            {{ slipModalSaving() ? 'กำลังบันทึก...' : 'บันทึก' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (receiptOrder(); as order) {
+    <app-receipt [order]="order" [shop]="shopSettings()" (close)="closeReceipt()"></app-receipt>
   }
 </div>

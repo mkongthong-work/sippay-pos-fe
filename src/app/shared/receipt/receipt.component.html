@@ -1,0 +1,135 @@
+<div
+  [class]="inline() ? 'receipt-inline' : 'receipt-overlay'"
+  (click)="inline() ? null : close.emit()"
+>
+  @if (!inline()) {
+    <div class="receipt-toolbar no-print" (click)="$event.stopPropagation()">
+      <button type="button" (click)="close.emit()">ปิด</button>
+      <button type="button" class="primary" (click)="print()">
+        พิมพ์ใบเสร็จ
+      </button>
+    </div>
+  }
+
+  <div class="receipt-print-root" (click)="$event.stopPropagation()">
+    @if (order(); as o) {
+      <div class="receipt-paper">
+        <div class="r-header">
+          <div class="r-center r-brand">
+            <span class="r-brand-mark"></span>
+            <span class="r-brand-word">Sippay</span>
+          </div>
+          @if (shop(); as s) {
+            <div class="r-center r-bold r-lg">{{ s.name }}</div>
+          }
+          @if (shop(); as s) {
+            @if (s.address) {
+              <div class="r-center">{{ s.address }}</div>
+            }
+            @if (s.phone) {
+              <div class="r-center">โทร {{ s.phone }}</div>
+            }
+            @if (s.tax_id) {
+              <div class="r-center">เลขผู้เสียภาษี {{ s.tax_id }}</div>
+            }
+          }
+        </div>
+        <div class="r-divider"></div>
+
+        <div class="r-row">
+          <span>เลขออเดอร์</span><span>{{ orderCode(o) }}</span>
+        </div>
+        <div class="r-row">
+          <span>วันที่</span><span>{{ formatThaiDate(o.created_at) }}</span>
+        </div>
+        <div class="r-row">
+          <span>โต๊ะ / คน</span><span>{{ tableGuestLabel(o) }}</span>
+        </div>
+        @if (o.created_by_user) {
+          <div class="r-row">
+            <span>พนักงาน</span><span>{{ o.created_by_user.name }}</span>
+          </div>
+        }
+
+        <div class="r-divider"></div>
+
+        @for (item of o.items; track item.id) {
+          <div class="r-item">
+            <div class="r-row">
+              <span class="r-item-name">
+                {{ item.quantity }}x {{ item.menu_item?.name }}
+                @if (item.is_takeaway) {
+                  <span>(กลับบ้าน)</span>
+                }
+              </span>
+              <span>{{
+                item.unit_price * item.quantity | number: "1.2-2"
+              }}</span>
+            </div>
+            @if (item.options && item.options.length > 0) {
+              @for (opt of item.options; track opt.id) {
+                <div class="r-sub">
+                  + {{ opt.choice_name }}
+                  @if (opt.price_delta) {
+                    <span>(+{{ opt.price_delta | number: '1.2-2' }})</span>
+                  }
+                </div>
+              }
+            }
+            @if (item.note) {
+              <div class="r-sub">หมายเหตุ: {{ item.note }}</div>
+            }
+          </div>
+        } @empty {
+          <div class="r-sub">ไม่มีรายการ</div>
+        }
+
+        <div class="r-divider"></div>
+
+        <div class="r-row">
+          <span>จำนวนรายการ</span><span>{{ itemsCount(o) }}</span>
+        </div>
+        <div class="r-row">
+          <span>ยอดก่อนส่วนลด</span
+          ><span>{{ o.subtotal | number: "1.2-2" }}</span>
+        </div>
+        @if (o.discount_amount > 0) {
+          <div class="r-row">
+            <span>ส่วนลด</span
+            ><span>-{{ o.discount_amount | number: "1.2-2" }}</span>
+          </div>
+        }
+        <div class="r-row r-total">
+          <span>รวมสุทธิ</span
+          ><span>฿{{ o.total_amount | number: "1.2-2" }}</span>
+        </div>
+
+        @if (o.payment; as p) {
+          <div class="r-divider"></div>
+          <div class="r-row">
+            <span>วิธีชำระ</span
+            ><span>{{ p.method === "transfer" ? "โอนเงิน" : "เงินสด" }}</span>
+          </div>
+          @if (p.method === "cash") {
+            <div class="r-row">
+              <span>รับเงิน</span
+              ><span>{{ p.received_amount | number: "1.2-2" }}</span>
+            </div>
+            <div class="r-row">
+              <span>เงินทอน</span
+              ><span>{{ p.change_amount | number: "1.2-2" }}</span>
+            </div>
+          } @else if (p.transfer_ref) {
+            <div class="r-row">
+              <span>เลขอ้างอิง</span><span>{{ p.transfer_ref }}</span>
+            </div>
+          }
+        }
+
+        <div class="r-divider"></div>
+        <div class="r-center r-footer">ขอบคุณที่ใช้บริการ</div>
+        <div class="r-center r-app-caption">Sippay POS</div>
+      </div>
+    }
+  </div>
+</div>

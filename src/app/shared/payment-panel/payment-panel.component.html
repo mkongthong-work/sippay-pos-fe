@@ -1,0 +1,174 @@
+<!-- ฝั่งซ้าย (ดีไซน์ 4a): แค่ตัวเลือกวิธีชำระ (เงินสด/โอนเงิน QR) — เงินสดยกเลิกใส่รายละเอียดในนี้แล้ว
+     (จำนวนเงิน/แป้นกด/เงินทอน ย้ายไปรวมกับฝั่งขวาเป็นการ์ดเดียว) โอนเงินยังคงมี QR/เลขอ้างอิง/แนบสลิปที่นี่ -->
+<ng-template #leftTpl>
+  <div class="method-toggle no-print">
+    <button
+      type="button"
+      class="method-btn"
+      [class.active]="method === 'cash'"
+      (click)="selectMethod('cash')"
+    >
+      <svg class="method-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="6" width="19" height="12" rx="2" />
+        <circle cx="12" cy="12" r="2.6" />
+        <path d="M5.5 9v.01M18.5 15v.01" />
+      </svg>
+      เงินสด
+    </button>
+    <button
+      type="button"
+      class="method-btn"
+      [class.active]="method === 'transfer'"
+      (click)="selectMethod('transfer')"
+    >
+      <svg class="method-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 10 12 4l8 6" />
+        <path d="M4.5 10h15v9h-15z" />
+        <path d="M9 13v3.5M15 13v3.5" />
+      </svg>
+      โอนเงิน / QR
+    </button>
+  </div>
+
+  @if (method === 'transfer') {
+    <div class="transfer-section">
+      <div class="promptpay-qr-box">
+        @if (qrLoading()) {
+          <p class="hint-text">กำลังสร้าง QR...</p>
+        } @else if (qrDataUrl()) {
+          <img [src]="qrDataUrl()" alt="QR พร้อมเพย์" class="promptpay-qr-img" />
+          <p class="hint-text">สแกนจ่าย {{ order().total_amount | number: '1.2-2' }} บาท ผ่านแอปธนาคาร</p>
+        } @else {
+          <p class="hint-text">ร้านยังไม่ได้ตั้งค่าเลขพร้อมเพย์ (ตั้งค่าได้ที่หน้า "ตั้งค่าร้านค้า")</p>
+        }
+      </div>
+
+      <label class="transfer-ref-label no-print">
+        เลขอ้างอิงการโอน (ไม่บังคับ)
+        <input
+          type="text"
+          placeholder="เช่น เลขท้ายอ้างอิงจากแอปธนาคาร"
+          [(ngModel)]="transferRef"
+        />
+      </label>
+
+      <label class="slip-upload-label no-print">
+        แนบรูปสลิป (ไม่บังคับ — ไม่แนบตอนนี้ก็ปิดบิลได้ ไปแนบทีหลังที่หน้ารายงานก็ได้)
+        <input type="file" accept="image/*" capture="environment" (change)="onSlipFileSelected($event)" />
+      </label>
+      @if (slipFileName) {
+        <p class="slip-file-name no-print">เลือกไฟล์แล้ว: {{ slipFileName }}</p>
+      }
+    </div>
+  }
+</ng-template>
+
+<!-- ฝั่งขวา (ดีไซน์ 4a): การ์ดเดียวรวมทุกอย่าง — รับเงินมา/แป้นกด/จำนวนด่วน/เงินทอน (เงินสด) หรือข้อความยืนยันยอด
+     (โอนเงิน) — ปุ่มยืนยันแยกเป็น confirmTpl ต่างหาก เพื่อให้หน้าคิดเงินหลัก (checkout) แทรกช่องกาพิมพ์ใบเสร็จ
+     ไว้เหนือปุ่มยืนยันได้ (ตามดีไซน์ 4a) -->
+<ng-template #rightTpl>
+  <div class="received-header no-print">
+    <span class="received-title">รับเงินมา</span>
+    @if (method === 'cash') {
+      <button type="button" class="clear-btn" (click)="pressClear()">ล้าง</button>
+    }
+  </div>
+  <div class="received-value-wrap no-print">
+    @if (method === 'cash') {
+      <input
+        type="text"
+        inputmode="decimal"
+        class="received-value-input"
+        [ngModel]="cashInputBuffer"
+        (ngModelChange)="onCashBufferTyped($event)"
+        placeholder="0"
+      />
+    } @else {
+      <div class="received-value">{{ order().total_amount | number: '1.2-2' }}</div>
+    }
+  </div>
+
+  @if (method === 'cash') {
+    @if (quickAmounts().length > 0 || order().total_amount > 0) {
+      <div class="quick-amounts no-print">
+        @for (amt of quickAmounts(); track amt) {
+          <button
+            type="button"
+            class="quick-amount-btn"
+            [class.active]="receivedAmount() === amt"
+            (click)="selectAmount(amt)"
+          >
+            ฿{{ amt | number: '1.2-2' }}
+          </button>
+        }
+        @if (order().total_amount > 0) {
+          <button
+            type="button"
+            class="quick-amount-btn quick-amount-exact"
+            [class.active]="isExactAmount()"
+            (click)="selectAmount(order().total_amount)"
+          >
+            พอดี
+          </button>
+        }
+      </div>
+    }
+
+    <div class="keypad no-print">
+      <button type="button" (click)="pressDigit('7')">7</button>
+      <button type="button" (click)="pressDigit('8')">8</button>
+      <button type="button" (click)="pressDigit('9')">9</button>
+      <button type="button" (click)="pressDigit('4')">4</button>
+      <button type="button" (click)="pressDigit('5')">5</button>
+      <button type="button" (click)="pressDigit('6')">6</button>
+      <button type="button" (click)="pressDigit('1')">1</button>
+      <button type="button" (click)="pressDigit('2')">2</button>
+      <button type="button" (click)="pressDigit('3')">3</button>
+      <button type="button" class="keypad-dot" (click)="pressDecimal()">.</button>
+      <button type="button" (click)="pressDigit('0')">0</button>
+      <button type="button" class="keypad-backspace" (click)="pressBackspace()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8.5 5.5H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8.5L3 12l5.5-6.5Z" />
+          <path d="M10.5 9.5l6 5M16.5 9.5l-6 5" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="change-display no-print">
+      <span class="change-label">เงินทอน</span>
+      <span class="change-value">฿{{ change() | number: '1.2-2' }}</span>
+    </div>
+
+    @if (shortfall() > 0) {
+      <p class="warn no-print">รับเงินไม่พอ ขาดอีก {{ shortfall() | number: '1.2-2' }} บาท</p>
+    }
+  } @else {
+    <p class="transfer-note no-print">ถือว่าโอนเงินมาครบยอดแล้ว — กดยืนยันเพื่อปิดบิล</p>
+  }
+</ng-template>
+
+<!-- ปุ่มยืนยันชำระเงิน — แยกจาก rightTpl เพื่อให้หน้าคิดเงินหลัก (checkout) แทรกช่องกาพิมพ์ใบเสร็จอัตโนมัติ
+     ไว้เหนือปุ่มนี้ได้ (ตามดีไซน์ 4a ที่ checkbox อยู่เหนือปุ่มยืนยันเสมอ) -->
+<ng-template #confirmTpl>
+  <button
+    type="button"
+    class="primary confirm-btn no-print"
+    (click)="confirmPayment()"
+    [disabled]="processing()"
+  >
+    @if (processing()) {
+      กำลังบันทึก...
+    } @else {
+      ยืนยันชำระเงิน ฿{{ order().total_amount | number: '1.2-2' }}
+    }
+  </button>
+</ng-template>
+
+<!-- โหมดปกติ (ไม่ split): วาดทั้ง 2 ฝั่ง + ปุ่มยืนยันเรียงต่อกันเป็นคอลัมน์เดียว ใช้ตรงกับ popup ที่หน้า POS/คิวออเดอร์ -->
+@if (!split()) {
+  <div class="payment-panel">
+    <ng-container *ngTemplateOutlet="leftTpl"></ng-container>
+    <ng-container *ngTemplateOutlet="rightTpl"></ng-container>
+    <ng-container *ngTemplateOutlet="confirmTpl"></ng-container>
+  </div>
+}

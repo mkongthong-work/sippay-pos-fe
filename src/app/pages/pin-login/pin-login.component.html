@@ -1,0 +1,108 @@
+<div class="pin-login-page">
+  <div class="pin-card">
+    @if (loadingUsers()) {
+      <p class="loading-text">กำลังโหลด...</p>
+    } @else if (!selectedUser()) {
+      <p class="empty">ยังไม่มีพนักงานที่ตั้ง PIN ไว้</p>
+      <a routerLink="/login" class="switch-link">เข้าด้วยชื่อผู้ใช้ + รหัสผ่านแทน</a>
+    } @else {
+      <span class="avatar lg" [class.role-admin]="selectedUser()!.role === 'admin'">
+        @if (selectedUser()!.role === 'admin') {
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8l3.5 3L12 5l4.5 6L20 8l-1.6 9.5H5.6L4 8Z" />
+          </svg>
+        } @else {
+          {{ initials(selectedUser()!.name) }}
+        }
+      </span>
+
+      <button type="button" class="profile-trigger" (click)="openProfilePicker()">
+        {{ selectedUser()!.name }}
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      <p class="subtitle">{{ roleLabel(selectedUser()!.role) }}</p>
+
+      <div class="pin-dots">
+        @for (d of allDots(); track $index) {
+          <span class="dot" [class.filled]="$index < pin().length"></span>
+        }
+      </div>
+
+      <div class="keypad">
+        <button type="button" (click)="pressDigit('1')">1</button>
+        <button type="button" (click)="pressDigit('2')">2</button>
+        <button type="button" (click)="pressDigit('3')">3</button>
+        <button type="button" (click)="pressDigit('4')">4</button>
+        <button type="button" (click)="pressDigit('5')">5</button>
+        <button type="button" (click)="pressDigit('6')">6</button>
+        <button type="button" (click)="pressDigit('7')">7</button>
+        <button type="button" (click)="pressDigit('8')">8</button>
+        <button type="button" (click)="pressDigit('9')">9</button>
+        <button type="button" class="keypad-backspace" (click)="pressBackspace()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8.5 5.5H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8.5L3 12l5.5-6.5Z" />
+            <path d="M10.5 9.5l6 5M16.5 9.5l-6 5" />
+          </svg>
+        </button>
+        <button type="button" (click)="pressDigit('0')">0</button>
+        <button
+          type="button"
+          class="keypad-confirm"
+          [disabled]="!canConfirm()"
+          (click)="confirm()"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 5v6a2 2 0 0 1-2 2H5.5" />
+            <path d="M9.5 9.5 5 13l4.5 3.5" />
+          </svg>
+        </button>
+      </div>
+
+      <a routerLink="/login" class="switch-link">ลืม PIN {{ roleLabel(selectedUser()!.role) }}?</a>
+    }
+  </div>
+
+  <!-- ==================== ป็อปอัพ: เลือกโปรไฟล์ ==================== -->
+  @if (profilePickerOpen()) {
+    <div class="picker-overlay" (click)="closeProfilePicker()">
+      <div class="picker-card" (click)="$event.stopPropagation()">
+        <div class="picker-head">
+          <h3>เลือกโปรไฟล์</h3>
+          <button type="button" class="close-x" (click)="closeProfilePicker()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="picker-list">
+          @for (u of users(); track u.id) {
+            <button type="button" class="picker-row" (click)="chooseProfile(u)">
+              <span class="avatar sm" [class.role-admin]="u.role === 'admin'">
+                @if (u.role === 'admin') {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 8l3.5 3L12 5l4.5 6L20 8l-1.6 9.5H5.6L4 8Z" />
+                  </svg>
+                } @else {
+                  {{ initials(u.name) }}
+                }
+              </span>
+              <span class="picker-row-text">
+                <span class="picker-row-name">{{ u.name }}</span>
+                <span class="picker-row-role">{{ roleLabel(u.role) }}</span>
+              </span>
+              @if (selectedUser()?.id === u.id) {
+                <span class="check">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12.5l4.5 4.5L19 7" />
+                  </svg>
+                </span>
+              }
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,316 @@
+// สไตล์นี้คือต้นแบบเดียวกับที่หน้าคิดเงินหลัก (checkout) เคยใช้ตอนยังเขียน UI จ่ายเงินแยกในตัวเอง —
+// ย้ายมารวมไว้ที่นี่เพราะตอนนี้ทั้ง 3 จุด (checkout คอลัมน์ขวา / popup "ชำระเงินเลย" หน้า POS / popup
+// "ชำระเงินก่อน" หน้าคิวออเดอร์) ใช้ component เดียวกัน หน้าตาจึงต้องเหมือนกันเป๊ะทั้งหมด
+//
+// :host เป็น flex item ที่ขยายเต็มพื้นที่ที่เหลือของ container ที่ครอบอยู่ (เช่น popup ที่หน้า POS/คิวออเดอร์
+// ซึ่งเป็น flex column) เพื่อให้แป้นกดเงิน (.keypad) ขยายเต็มพื้นที่แนวตั้งที่เหลือได้เหมือนดีไซน์เดิม
+//
+// แต่ถ้าใช้แบบ [split]="true" (หน้าคิดเงินหลัก checkout — ดึง leftTpl/rightTpl ไปวางเองคนละคอลัมน์)
+// component เองไม่วาดอะไรเลย เลย host ต้องไม่กิน layout ของ container ที่ครอบอยู่ (display: contents
+// ทำให้ host "หายไป" จาก box model แต่ content ที่ projected ออกไปที่อื่นยังใช้งานได้ปกติ)
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+:host.split {
+  display: contents;
+}
+
+.payment-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// ตามดีไซน์ 4a: ปุ่มวิธีชำระตัวใหญ่ 2 ปุ่ม แถวเดียว — เลือกอยู่มีขอบ+ตัวหนังสือเขียว (accent) พร้อม glow บาง ๆ
+// (ไม่ใช้พื้นเขียวทึบ เพราะสีเขียวสงวนไว้ให้ปุ่มยืนยันปุ่มเดียวในหน้า)
+.method-toggle {
+  display: flex;
+  gap: 0.6rem;
+
+  .method-btn {
+    flex: 1;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    background: white;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--color-accent);
+    }
+
+    &.active {
+      border: 2px solid var(--color-accent);
+      color: var(--color-accent-dark);
+      box-shadow: 0 0 0 4px rgba(46, 139, 132, 0.12);
+    }
+  }
+}
+
+.method-icon {
+  flex: none;
+}
+
+.hint-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+// แถวจำนวนเงินด่วน — ตามดีไซน์ 4a อยู่เหนือแป้นกดตัวเลข (ไม่ใช่ฝั่งซ้ายแบบเดิม) 4 ปุ่มความกว้างเท่ากัน
+.quick-amounts {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.quick-amount-btn {
+  flex: 1;
+  height: 42px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: white;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary);
+  }
+
+  &.active {
+    border: 1.5px solid var(--color-primary);
+    background: var(--color-highlight-bg);
+    color: var(--color-primary);
+  }
+}
+
+.quick-amount-exact {
+  font-family: 'Bai Jamjuree', sans-serif;
+}
+
+.received-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.received-title {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+// กล่องแสดง/กรอกยอดเงิน — ตามดีไซน์ 4a เป็นกล่องใหญ่ขอบเขียว glow บาง ๆ ตัวเลข mono 44px ชิดขวา
+.received-value-wrap {
+  height: 76px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--color-accent);
+  border-radius: 12px;
+  padding: 0 1.1rem;
+  box-shadow: 0 0 0 4px rgba(46, 139, 132, 0.12);
+  box-sizing: border-box;
+}
+
+// แสดงยอดสุทธิแบบตัวเลขนิ่ง (อ่านอย่างเดียว) แทนช่องกรอกตอนเลือกวิธีจ่ายเป็นโอนเงิน — คู่กับ .received-value-input
+// ที่ใช้ตอนเงินสด (ทั้งสองอยู่ใน .received-value-wrap เดียวกัน แสดงแค่อย่างใดอย่างหนึ่งตาม method)
+.received-value {
+  width: 100%;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 2.2rem;
+  font-weight: 600;
+  text-align: right;
+  color: var(--color-text);
+}
+
+.transfer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+// ช่องรับเงิน — <input> จริง ไม่ใช่แค่กล่องแสดงผล เพื่อให้พิมพ์จำนวนเงินจากคีย์บอร์ดได้โดยตรง
+// (ไม่ใช่กดได้แค่แป้นกดตัวเลขบนจอเท่านั้น) ดู onCashBufferTyped() ที่ผูกกับ (ngModelChange)
+.received-value-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: var(--color-text);
+  padding: 0;
+
+  &::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+  }
+}
+
+.clear-btn {
+  flex: none;
+  height: 32px;
+  padding: 0 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: white;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
+}
+
+.keypad {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 0.6rem;
+
+  button {
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    background: white;
+    font-size: 1.6rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--color-primary);
+    }
+
+    &:active {
+      background: var(--color-highlight-bg);
+    }
+  }
+
+  .keypad-dot {
+    color: var(--color-text-muted);
+  }
+
+  .keypad-backspace {
+    color: var(--color-text-muted);
+  }
+}
+
+// กล่องเงินทอน — ตามดีไซน์ 4a เป็นแถบเขียวอ่อนตัวใหญ่ คู่กับกล่อง "ยอดที่ต้องชำระ" กรมท่าทึบฝั่งซ้าย
+// (สองก้อนที่แคชเชียร์อ่านบ่อยที่สุด จึงใหญ่ที่สุดในจอ)
+.change-display {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--color-accent-bg);
+}
+
+.change-label {
+  font-size: 0.85rem;
+  color: var(--color-accent-dark);
+}
+
+.change-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-accent-dark);
+}
+
+.warn {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  margin: 0;
+  text-align: center;
+}
+
+.promptpay-qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg);
+}
+
+.promptpay-qr-img {
+  width: 180px;
+  height: 180px;
+}
+
+.transfer-ref-label,
+.slip-upload-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+
+  input {
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    font-size: 0.95rem;
+    box-sizing: border-box;
+  }
+}
+
+.slip-file-name {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.transfer-note {
+  margin: 0;
+  padding: 1rem 0.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border-radius: 10px;
+}
+
+// ปุ่มยืนยันชำระเงิน — สีเขียวปุ่มเดียวในหน้า (สงวนไว้เฉพาะปุ่มที่จบงาน/รับเงินตามระบบสี)
+.confirm-btn {
+  flex: none;
+  width: 100%;
+  height: 62px;
+  border-radius: 12px;
+  border: none;
+  background: var(--color-accent);
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
