@@ -174,7 +174,7 @@
           </label>
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             โซน
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newTableZone">
+            <select class="border border-gray-300 rounded-lg px-3 py-2 pr-8" [(ngModel)]="newTableZone">
               @for (z of zoneOptions(); track z) {
                 <option [ngValue]="z">{{ z }}</option>
               }
@@ -240,7 +240,7 @@
           </label>
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             โซน
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editTableZone">
+            <select class="border border-gray-300 rounded-lg px-3 py-2 pr-8" [(ngModel)]="editTableZone">
               @for (z of zoneOptions(); track z) {
                 <option [ngValue]="z">{{ z }}</option>
               }
@@ -264,7 +264,7 @@
           </label>
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             สถานะ
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editTableStatus">
+            <select class="border border-gray-300 rounded-lg px-3 py-2 pr-8" [(ngModel)]="editTableStatus">
               <option value="available">ว่าง</option>
               <option value="occupied">มีลูกค้า</option>
               <option value="reserved">จองไว้</option>

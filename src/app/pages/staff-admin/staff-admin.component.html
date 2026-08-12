@@ -129,7 +129,7 @@
           </label>
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             สิทธิ์
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newRole">
+            <select class="border border-gray-300 rounded-lg px-3 py-2 pr-8" [(ngModel)]="newRole">
               <option value="staff">พนักงาน</option>
               <option value="admin">แอดมิน</option>
             </select>
@@ -180,7 +180,7 @@
           </label>
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             สิทธิ์
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="editRole" [disabled]="isSelf(user)">
+            <select class="border border-gray-300 rounded-lg px-3 py-2 pr-8" [(ngModel)]="editRole" [disabled]="isSelf(user)">
               <option value="staff">พนักงาน</option>
               <option value="admin">แอดมิน</option>
             </select>

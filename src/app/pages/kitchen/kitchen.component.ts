@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 
 import { OrderService } from '../../core/order.service';
 import { Order, OrderItem, OrderItemStatus } from '../../core/models';
+import { LoadingIconComponent } from '../../shared/loading-icon/loading-icon.component';
 
 // เมนู 1 รายการ พร้อมอ้างอิงกลับไปที่บิล/โต๊ะที่มันสังกัดอยู่ — ใช้เป็นหน่วยการ์ดในบอร์ด 3 คอลัมน์
 interface KitchenCard {
@@ -35,7 +36,7 @@ const BILL_COLORS: BillColor[] = [
 @Component({
   selector: 'app-kitchen',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LoadingIconComponent],
   templateUrl: './kitchen.component.html',
   styleUrl: './kitchen.component.scss'
 })

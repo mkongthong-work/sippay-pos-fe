@@ -293,6 +293,11 @@ h1 {
     border: 1px solid var(--color-border);
   }
 
+  // เผื่อพื้นที่ให้ลูกศร select ทางขวา (appearance/ลูกศรมาจาก global select{} ใน styles.scss)
+  select {
+    padding-right: 1.9rem;
+  }
+
   // ปุ่มในแถวค้นหา/ฟิลเตอร์ ไม่ใช่ยืนยันชำระเงิน จึงใช้กรมท่า
   button {
     padding: 0.5rem 1rem;
@@ -564,6 +569,11 @@ h1 {
     border-radius: 8px;
     border: 1px solid var(--color-border);
     background: white;
+  }
+
+  // เผื่อพื้นที่ให้ลูกศร select ทางขวา (appearance/ลูกศรมาจาก global select{} ใน styles.scss)
+  select {
+    padding-right: 1.9rem;
   }
 
   textarea {

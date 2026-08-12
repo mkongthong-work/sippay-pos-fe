@@ -19,7 +19,7 @@
   </div>
 
   @if (loading()) {
-    <p class="loading-text">กำลังโหลด...</p>
+    <app-loading-icon text="กำลังโหลดออเดอร์ครัว..." [fullpage]="true"></app-loading-icon>
   } @else if (loadError()) {
     <div class="state-box state-box--error">
       <span class="state-icon state-icon--error">
@@ -74,14 +74,16 @@
             @if (card.item.note) {
               <div class="card-note">หมายเหตุ: {{ card.item.note }}</div>
             }
-            <button
-              type="button"
-              class="card-action start"
-              [disabled]="isUpdating(card.item.id)"
-              (click)="startItem(card.order, card.item)"
-            >
-              เริ่มทำ
-            </button>
+            <div class="card-action-row">
+              <button
+                type="button"
+                class="card-action start"
+                [disabled]="isUpdating(card.item.id)"
+                (click)="startItem(card.order, card.item)"
+              >
+                เริ่มทำ
+              </button>
+            </div>
           </div>
         } @empty {
           <p class="empty">ไม่มีรายการ</p>

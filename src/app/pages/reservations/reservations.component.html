@@ -123,7 +123,7 @@
 
           <label class="flex flex-col gap-1 text-sm text-gray-600">
             โต๊ะ
-            <select class="border border-gray-300 rounded-lg px-3 py-2" [(ngModel)]="newTableId">
+            <select class="border border-gray-300 rounded-lg px-3 py-2 pr-8" [(ngModel)]="newTableId">
               @for (group of tablesByZone(); track group.zone) {
                 <optgroup [label]="group.zone">
                   @for (t of group.tables; track t.id) {
