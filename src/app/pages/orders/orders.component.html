@@ -45,13 +45,8 @@
     </div>
 
     @if (loading()) {
-      <!-- กำลังโหลด — โครงร่างแทนข้อความ (ดีไซน์ 6b) -->
-      <div class="queue-skeleton">
-        <div class="skeleton-line"></div>
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card skeleton-card--2"></div>
-        <div class="skeleton-card skeleton-card--3"></div>
-      </div>
+      <!-- กำลังโหลด — ไอคอนวนกลาง -->
+      <app-loading-icon text="กำลังโหลดออเดอร์..." [fullpage]="true"></app-loading-icon>
     } @else if (loadError()) {
       <!-- ผิดพลาด — เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (ดีไซน์ 6b) -->
       <div class="state-box state-box--error">

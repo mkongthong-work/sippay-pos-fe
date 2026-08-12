@@ -14,6 +14,7 @@ import { generatePromptPayPayload } from '../../core/promptpay';
 import { formatThaiTimestamp } from '../../core/thai-date';
 import { ReceiptComponent } from '../../shared/receipt/receipt.component';
 import { PaymentPanelComponent } from '../../shared/payment-panel/payment-panel.component';
+import { LoadingIconComponent } from '../../shared/loading-icon/loading-icon.component';
 import {
   Category,
   DiningTable,
@@ -62,13 +63,15 @@ const HELD_CARTS_STORAGE_KEY = 'sippay_pos_held_carts';
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReceiptComponent, PaymentPanelComponent],
+  imports: [CommonModule, FormsModule, ReceiptComponent, PaymentPanelComponent, LoadingIconComponent],
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss'
 })
 export class PosComponent implements OnInit {
   categories = signal<Category[]>([]);
   menuItems = signal<MenuItem[]>([]);
+  // true ตอนเข้าหน้าครั้งแรกแล้วกำลังโหลดหมวดหมู่+เมนู — โชว์ไอคอน loading กลางกริดเมนูแทนกริดว่างๆ
+  menuLoading = signal(true);
   tables = signal<DiningTable[]>([]);
   zones = signal<Zone[]>([]);
   // รายการจอง/กันโต๊ะที่ยัง active อยู่ ใช้แค่แปะป้ายชื่อลูกค้าบนโต๊ะที่จองไว้ใน popup เลือกโต๊ะ
@@ -221,13 +224,22 @@ export class PosComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.menuService.getCategories().subscribe((cats) => {
-      this.categories.set(cats);
-      if (cats.length > 0) {
-        this.selectedCategoryId.set(cats[0].id);
-      }
+    this.menuService.getCategories().subscribe({
+      next: (cats) => {
+        this.categories.set(cats);
+        if (cats.length > 0) {
+          this.selectedCategoryId.set(cats[0].id);
+        }
+      },
+      error: () => this.menuLoading.set(false)
     });
-    this.menuService.getMenuItems().subscribe((items) => this.menuItems.set(items));
+    this.menuService.getMenuItems().subscribe({
+      next: (items) => {
+        this.menuItems.set(items);
+        this.menuLoading.set(false);
+      },
+      error: () => this.menuLoading.set(false)
+    });
     this.refreshTables();
     this.refreshReservations();
     this.zoneService.getZones().subscribe((zones) => this.zones.set(zones));

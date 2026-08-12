@@ -19,7 +19,12 @@
       }
     </div>
 
+    @if (menuLoading()) {
+      <app-loading-icon text="กำลังโหลดเมนู..." [fullpage]="true"></app-loading-icon>
+    }
+
     <div class="items-grid">
+      @if (!menuLoading()) {
       @for (item of filteredMenuItems(); track item.id) {
         <button
           class="item-card"
@@ -43,6 +48,7 @@
         </button>
       } @empty {
         <p class="empty">ยังไม่มีเมนูในหมวดนี้ ไปเพิ่มได้ที่หน้าจัดการเมนู</p>
+      }
       }
     </div>
   </section>

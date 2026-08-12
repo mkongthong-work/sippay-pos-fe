@@ -15,11 +15,12 @@ import { formatThaiTimestamp } from '../../core/thai-date';
 import { Category, DiningTable, MenuItem, Order, OrderStatus, ShopSettings, Zone } from '../../core/models';
 import { ReceiptComponent } from '../../shared/receipt/receipt.component';
 import { PaymentPanelComponent } from '../../shared/payment-panel/payment-panel.component';
+import { LoadingIconComponent } from '../../shared/loading-icon/loading-icon.component';
 
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ReceiptComponent, PaymentPanelComponent],
+  imports: [CommonModule, FormsModule, RouterLink, ReceiptComponent, PaymentPanelComponent, LoadingIconComponent],
   templateUrl: './orders.component.html',
   styleUrl: './orders.component.scss'
 })
